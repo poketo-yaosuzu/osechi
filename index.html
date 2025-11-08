@@ -5,96 +5,78 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>おせち予約フォーム</title>
 <style>
-body{font-family:sans-serif;margin:0;padding:0;background:#f5f5f5;color:#333;}
-.container{max-width:480px;margin:auto;padding:10px;}
-h2{text-align:center;margin:10px 0;}
+/* ------------------ 全体 ------------------ */
+* { box-sizing: border-box; }
+body { font-family:sans-serif; margin:0; padding:0; background:#f5f5f5; color:#333; }
+.container { max-width:480px; margin:auto; padding:10px; }
+h2 { text-align:center; margin:10px 0; }
 
-/* 共通ステップ */
-button{padding:10px 15px;margin:5px;border:none;border-radius:6px;cursor:pointer;font-size:1em;}
-button:hover{opacity:0.9;}
-.step{display:none;}
-.step.active{display:block;}
+/* ------------------ 共通ステップ ------------------ */
+button { padding:10px 15px; margin:5px; border:none; border-radius:6px; cursor:pointer; font-size:1em; }
+button:hover { opacity:0.9; }
+.step { display:none; }
+.step.active { display:block; }
 
-/* ステップ1:店舗選択ボタン */
-.store-btn{display:block;width:100%;margin:10px 0;background:#00c300;color:#fff;font-weight:bold;border-radius:10px;padding:15px;font-size:1.1em;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
-
-/* ステップ2:メニューカード */
-.menu-card{border:1px solid #ddd;border-radius:12px;padding:10px;margin:12px 0;background:#fff;position:relative;box-shadow:0 2px 6px rgba(0,0,0,0.15);}
-.menu-card img{width:100%;border-radius:12px;cursor:pointer;}
-.menu-card h3{margin:8px 0 4px;}
-.menu-card p{margin:2px 0;font-size:0.9em;color:#555;}
-.badge{position:absolute;top:8px;right:8px;background:red;color:#fff;padding:3px 6px;font-size:0.75em;border-radius:4px;}
-.qty-control{display:flex;align-items:center;justify-content:center;margin-top:5px;}
-.qty-btn{width:36px;height:36px;background:#eee;font-size:1.2em;line-height:36px;text-align:center;border-radius:6px;cursor:pointer;margin:0 5px;}
-.qty-display{min-width:24px;text-align:center;font-weight:bold;font-size:1em;}
-
-/* ステップ3:お客様情報LINE風 */
-#step3 label{display:block;margin-bottom:15px;font-size:0.9em;color:#555;}
-#step3 input,#step3 textarea,#step3 select{
+/* ------------------ ステップ1 ------------------ */
+.store-btn {
+  display:block;
   width:100%;
-  padding:12px 12px;
-  border:1px solid #ccc;
+  margin:10px 0;
+  background:#00c300;
+  color:#fff;
+  font-weight:bold;
+  border-radius:10px;
+  padding:15px;
+  font-size:1.1em;
+  box-shadow:0 2px 4px rgba(0,0,0,0.1);
+  text-align:center;
+  word-break:break-word;
+}
+
+/* ------------------ ステップ2 ------------------ */
+.menu-card {
+  border:1px solid #ddd;
   border-radius:12px;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
-  font-size:1em;
-  margin-top:5px;
-  box-sizing:border-box;
+  padding:10px;
+  margin:12px 0;
+  background:#fff;
+  position:relative;
+  box-shadow:0 2px 6px rgba(0,0,0,0.15);
 }
-#step3 textarea{resize:none;min-height:80px;}
-#step3 button{width:48%;margin:5px 1%;background:#00c300;color:#fff;font-weight:bold;border-radius:12px;padding:12px;font-size:1em;cursor:pointer;border:none;transition:0.2s;}
-#step3 button:hover{opacity:0.9;}
-#step3 .btn-back{background:#ccc;color:#333;}
+.menu-card img { width:100%; border-radius:12px; cursor:pointer; }
+.menu-card h3 { margin:8px 0 4px; }
+.menu-card p { margin:2px 0; font-size:0.9em; color:#555; }
+.badge { position:absolute; top:8px; right:8px; background:red; color:#fff; padding:3px 6px; font-size:0.75em; border-radius:4px; }
+.qty-control { display:flex; align-items:center; justify-content:center; margin-top:5px; }
+.qty-btn { width:36px; height:36px; background:#eee; font-size:1.2em; line-height:36px; text-align:center; border-radius:6px; cursor:pointer; margin:0 5px; }
+.qty-display { min-width:24px; text-align:center; font-weight:bold; font-size:1em; }
 
-/* モーダル */
-#imageModal,#sendingModal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;justify-content:center;align-items:center;z-index:1000;}
-#imageModal{background:rgba(0,0,0,0.8);}
-#sendingModal{background:rgba(0,0,0,0.5);color:#fff;font-size:1.2em;}
-#modalContent{position:relative;}
-#modalImg{max-width:90vw;max-height:80vh;border-radius:8px;}
-#modalCaption{color:#fff;text-align:center;margin-top:5px;}
-#modalClose{position:absolute;top:-10px;right:-10px;background:#fff;color:#000;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;cursor:pointer;font-weight:bold;}
+/* ------------------ ステップ3 ------------------ */
+#step3 label { display:block; margin-bottom:15px; font-size:0.9em; color:#555; }
+#step3 input,#step3 textarea,#step3 select {
+  width:100%; padding:12px; border:1px solid #ccc; border-radius:12px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); font-size:1em; margin-top:5px;
+}
+#step3 textarea { resize:none; min-height:80px; }
+#step3 button { width:48%; margin:5px 1%; background:#00c300; color:#fff; font-weight:bold; border-radius:12px; padding:12px; font-size:1em; cursor:pointer; border:none; transition:0.2s; }
+#step3 button:hover { opacity:0.9; }
+#step3 .btn-back { background:#ccc; color:#333; }
 
-/* ステップ４：LINE風サンクスカード */
-#step4 {
-  display: none;
-  text-align: center;
-}
-.thanks-card {
-  background: #eaffea;
-  border-radius: 16px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-  padding: 25px;
-  margin: 40px auto;
-  max-width: 420px;
-}
-.thanks-card h2 {
-  color: #00c300;
-  margin-bottom: 10px;
-}
-.thanks-card p {
-  font-size: 0.95em;
-  margin-bottom: 15px;
-}
-.summary {
-  text-align: left;
-  background: #fff;
-  border-radius: 12px;
-  padding: 12px;
-  margin-bottom: 20px;
-  line-height: 1.6em;
-  font-size: 0.9em;
-  box-shadow: inset 0 1px 4px rgba(0,0,0,0.05);
-}
-#backToLINE {
-  background: #00c300;
-  color: #fff;
-  font-weight: bold;
-  border-radius: 10px;
-  padding: 12px 20px;
-  border: none;
-  cursor: pointer;
-  font-size: 1em;
-}
+/* ------------------ モーダル ------------------ */
+#imageModal,#sendingModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; justify-content:center; align-items:center; z-index:1000; }
+#imageModal { background:rgba(0,0,0,0.8); }
+#sendingModal { background:rgba(0,0,0,0.5); color:#fff; font-size:1.2em; }
+#modalContent { position:relative; }
+#modalImg { max-width:90vw; max-height:80vh; border-radius:8px; }
+#modalCaption { color:#fff; text-align:center; margin-top:5px; }
+#modalClose { position:absolute; top:-10px; right:-10px; background:#fff; color:#000; border-radius:50%; width:24px; height:24px; text-align:center; line-height:24px; cursor:pointer; font-weight:bold; }
+
+/* ------------------ ステップ4 ------------------ */
+#step4 { display:none; text-align:center; }
+.thanks-card { background:#eaffea; border-radius:16px; box-shadow:0 4px 8px rgba(0,0,0,0.1); padding:25px; margin:40px auto; max-width:420px; }
+.thanks-card h2 { color:#00c300; margin-bottom:10px; }
+.thanks-card p { font-size:0.95em; margin-bottom:15px; }
+.summary { text-align:left; background:#fff; border-radius:12px; padding:12px; margin-bottom:20px; line-height:1.6em; font-size:0.9em; box-shadow: inset 0 1px 4px rgba(0,0,0,0.05); }
+#backToLINE { background:#00c300; color:#fff; font-weight:bold; border-radius:10px; padding:12px 20px; border:none; cursor:pointer; font-size:1em; }
 #backToLINE:hover { opacity:0.9; }
 </style>
 </head>
@@ -123,8 +105,8 @@ button:hover{opacity:0.9;}
   <label>お名前<input type="text" id="customerName" placeholder="例：山田太郎"></label>
   <label>電話番号<input type="tel" id="customerTel" placeholder="例：090-1234-5678"></label>
   <label>受取日<input type="text" id="receiveDate" readonly></label>
-  <label>受取時間<select id="receiveTime"></select></label>
-  <label>備考<textarea id="customerNote" placeholder="例：アレルギーあり"></textarea></label>
+  <label>受取時間（11：00～18：00までの30分刻みです）<select id="receiveTime"></select></label>
+  <label>備考<textarea id="customerNote" placeholder="お伝えしたい事があれば記入下さい"></textarea></label>
   <div style="display:flex;justify-content:space-between;">
     <button id="backToStep2" class="btn-back">戻る</button>
     <button id="confirmReservation">確定</button>
@@ -141,7 +123,7 @@ button:hover{opacity:0.9;}
   </div>
 </div>
 
-</div> <!-- container end -->
+</div>
 
 <!-- モーダル -->
 <div id="imageModal">
@@ -157,28 +139,24 @@ button:hover{opacity:0.9;}
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
-// ------------------ 初期設定 ------------------
+const LIFF_ID = "2008417031-yLP1bOMR"; 
+const GAS_URL = "https://script.google.com/macros/s/AKfycbw7ulRlsbuUG2jW9tYqqZe-cT2yJJpA63tBjKdG66znyOLLDaCS2_Etx1BOJf_oX79MPw/exec";
+
 let selectedStore = "";
 const TAX_RATE = 0.08;
 const menus = [
-  {id:1,name:"和・洋１段重 ちとせ",price:8800,discount:true,description:"一段の和洋折衷おせち",img:"img/chitose.jpg"},
-  {id:2,name:"和・洋２段重 ひので",price:15800,discount:true,description:"二段の豪華和洋折衷おせち",img:"img/hinode.jpg"}
+  {id:1,name:"和・洋１段重 ちとせ",price:8800,discount:true,description:"少人数でも楽しめる品数豊富な一品",img:"img/chitose.jpg"},
+  {id:2,name:"和・洋２段重 ひので",price:15800,discount:true,description:"家族みんなで大満足。定番と多彩な料理の二段重",img:"img/hinode.jpg"}
 ];
 
 function withTax(price){ return Math.round(price*(1+TAX_RATE)); }
 function formatYen(price){ return `¥${price.toLocaleString()}`; }
-function formatWareki(date){const y=date.getFullYear()-2018; return `R${y}年${date.getMonth()+1}月${date.getDate()}日（${["日","月","火","水","木","金","土"][date.getDay()]}）`; }
+function formatWareki(date){const y=date.getFullYear()-2018; const wYear="R"+y; const month=date.getMonth()+1; const day=date.getDate(); const weekdays=["日","月","火","水","木","金","土"]; return `${wYear}年${month}月${day}日（${weekdays[date.getDay()]}）`; }
 function formatTimeHM(timeStr){ const [h,m]=timeStr.split(":"); return `${parseInt(h)}時${parseInt(m)}分`; }
 
-  liff.init({
-  liffId: "2008417031-yLP1bOMR"
-}).then(() => {
-  console.log("LIFF initialized");
-}).catch(err => {
-  console.error("LIFF init error", err);
-});
-  
-// ------------------ ステップ1 ------------------
+liff.init({ liffId: LIFF_ID }).then(()=>{ console.log("LIFF initialized"); }).catch(err=>console.error(err));
+
+// --------------------- ステップ1 ---------------------
 document.querySelectorAll(".store-btn").forEach(btn=>{
   btn.addEventListener("click",()=>{
     selectedStore = btn.dataset.store;
@@ -188,11 +166,15 @@ document.querySelectorAll(".store-btn").forEach(btn=>{
   });
 });
 
-// ------------------ ステップ2 ------------------
+// --------------------- ステップ2 ---------------------
 function renderMenuStep2(){
-  document.getElementById("menuTitle").textContent = selectedStore+"のご予約";
+  document.getElementById("menuTitle").textContent = selectedStore+"でご予約";
   const menuList=document.getElementById("menuList");
   menuList.innerHTML="";
+  const toStep3Btn = document.getElementById("toStep3");
+  toStep3Btn.disabled = true;
+  toStep3Btn.style.opacity = 0.5;
+
   menus.forEach((menu,index)=>{
     const now=new Date();
     const earlyDiscountEnd=new Date(now.getFullYear(),10,30);
@@ -216,34 +198,45 @@ function renderMenuStep2(){
     `;
     menuList.appendChild(card);
 
+    // 数量ボタン
     card.querySelectorAll(".qty-btn").forEach(qbtn=>{
       qbtn.addEventListener("click",()=>{
         const display=card.querySelector(".qty-display");
         let val=parseInt(display.textContent);
         val = qbtn.dataset.action==="plus"?val+1:Math.max(0,val-1);
         display.textContent=val;
+
+        // 「次へ」ボタン活性/非活性
+        const qtyDisplays = document.querySelectorAll("#step2 .menu-card .qty-display");
+        let totalQty = 0;
+        qtyDisplays.forEach(d=>totalQty += parseInt(d.textContent));
+        toStep3Btn.disabled = totalQty===0;
+        toStep3Btn.style.opacity = totalQty===0?0.5:1;
       });
     });
 
+    // モーダル
     card.querySelector("img").addEventListener("click",()=>{
-      document.getElementById("modalImg").src=menu.img;
-      document.getElementById("modalCaption").textContent=menu.name+"\n"+menu.description;
-      document.getElementById("imageModal").style.display="flex";
+      document.getElementById("modalImg").src = menu.img;
+      document.getElementById("modalCaption").textContent = menu.name+"\n"+menu.description;
+      document.getElementById("imageModal").style.display = "flex";
     });
   });
 }
 
-document.getElementById("backToStep1").addEventListener("click",()=>{
-  document.getElementById("step2").classList.remove("active");
-  document.getElementById("step1").classList.add("active");
-});
+// ステップ移動
+document.getElementById("backToStep1").addEventListener("click",()=>{document.getElementById("step2").classList.remove("active");document.getElementById("step1").classList.add("active");});
 document.getElementById("toStep3").addEventListener("click",()=>{
+  const qtyDisplays = document.querySelectorAll("#step2 .menu-card .qty-display");
+  let totalQty = 0;
+  qtyDisplays.forEach(d=>totalQty += parseInt(d.textContent));
+  if(totalQty===0){ alert("1つ以上の商品を選択してください。"); return; }
   document.getElementById("step2").classList.remove("active");
   document.getElementById("step3").classList.add("active");
   renderStep3();
 });
 
-// ------------------ ステップ3 ------------------
+// --------------------- ステップ3 ---------------------
 function renderStep3(){
   const now=new Date();
   const receiveDate=new Date(now.getFullYear(),11,31);
@@ -261,23 +254,17 @@ function renderStep3(){
     });
   }
 }
+document.getElementById("backToStep2").addEventListener("click",()=>{document.getElementById("step3").classList.remove("active");document.getElementById("step2").classList.add("active");});
 
-document.getElementById("backToStep2").addEventListener("click",()=>{
-  document.getElementById("step3").classList.remove("active");
-  document.getElementById("step2").classList.add("active");
-});
+// --------------------- モーダル ---------------------
+document.getElementById("modalClose").addEventListener("click",()=>{document.getElementById("imageModal").style.display="none";});
 
-// ------------------ モーダル閉じる ------------------
-document.getElementById("modalClose").addEventListener("click",()=>{
-  document.getElementById("imageModal").style.display="none";
-});
-
-// ------------------ 確定ボタン ------------------
-document.getElementById("confirmReservation").addEventListener("click", async () => {
+// --------------------- 確定 ---------------------
+document.getElementById("confirmReservation").addEventListener("click", async ()=>{
   const sendingModal = document.getElementById("sendingModal");
   sendingModal.style.display="flex";
 
-  const name = document.getElementById("customerName").value.trim() + "様";
+  const name = document.getElementById("customerName").value.trim()+"様";
   const tel = document.getElementById("customerTel").value.trim();
   const store = selectedStore;
   const note = document.getElementById("customerNote").value.trim();
@@ -287,41 +274,21 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
   let menuSummary = "";
   menus.forEach((menu,index)=>{
     const qty = parseInt(document.querySelectorAll("#step2 .menu-card .qty-display")[index].textContent);
-    if(qty>0){
-      menuSummary += `${menu.name} × ${qty}\n`;
-    }
+    if(qty>0){ menuSummary += `${menu.name} × ${qty}\n`; }
   });
 
-  const payload = {
-    userId: liff.getContext().userId,
-    name,name,
-    tel,tel,
-    store,store,
-    note,note,
-    date:dateVal,
-    time:timeVal,
-    menu:menuSummary
-  };
+  const payload = {name,tel,store,note,date:dateVal,time:timeVal,menu:menuSummary};
 
   try{
-    await fetch("https://script.google.com/macros/s/AKfycbw7ulRlsbuUG2jW9tYqqZe-cT2yJJpA63tBjKdG66znyOLLDaCS2_Etx1BOJf_oX79MPw/exec",{
+    await fetch(GAS_URL,{
       method:"POST",
       body:JSON.stringify(payload),
       headers:{"Content-Type":"application/json"}
     });
-
-    if(liff.isLoggedIn()){
-      await liff.sendMessages([{
-        type:"text",
-        text:`ご予約ありがとうございます！\n\n店舗: ${store}\n受取日: ${dateVal} ${timeVal}\nお名前: ${name}\n電話: ${tel}\nご注文内容:\n${menuSummary}`
-      }]);
-    }
-
     sendingModal.style.display="none";
     document.getElementById("step3").classList.remove("active");
     document.getElementById("step4").classList.add("active");
-
-    document.getElementById("summaryBox").innerHTML=`
+    document.getElementById("summaryBox").innerHTML = `
       <strong>店舗：</strong>${store}<br>
       <strong>お名前：</strong>${name}<br>
       <strong>電話番号：</strong>${tel}<br>
@@ -335,9 +302,9 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
   }
 });
 
-// LINEへ戻る
+// --------------------- LINEへ戻る ---------------------
 document.getElementById("backToLINE").addEventListener("click",()=>{
-  if(liff.isInClient()){ liff.closeWindow(); } else { location.reload(); }
+  if(liff.isInClient()){ liff.closeWindow(); }else{ location.reload(); }
 });
 </script>
 </body>
