@@ -102,6 +102,7 @@ button:hover{opacity:0.9;}
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
+  
 const LIFF_ID = "2008417031-yLP1bOMR"; 
 const GAS_URL = "https://script.google.com/macros/s/AKfycby3Rw5jRoT69NMkyw7f2pHfEqLnVvE5H8i75v0e7mnA8TYXM9t9EgW06qyR6I3dkrIKkw/exec"; 
 let selectedStore = "";
@@ -115,10 +116,24 @@ function formatYen(price){ return `¥${price.toLocaleString()}`; }
 function formatWareki(date){const y=date.getFullYear()-2018; const wYear="R"+y; const month=date.getMonth()+1; const day=date.getDate(); const weekdays=["日","月","火","水","木","金","土"]; return `${wYear}年${month}月${day}日（${weekdays[date.getDay()]}）`; }
 function formatTimeHM(timeStr){ const [h,m]=timeStr.split(":"); return `${parseInt(h)}時${parseInt(m)}分`; }
 
-// LIFF 初期化
-liff.init({ liffId: LIFF_ID }).then(()=>console.log("LIFF initialized")).catch(console.error);
+// --------------------- LIFF 初期化 ---------------------
+async function initLiffApp() {
+  await liff.init({ liffId: LIFF_ID });
+  console.log("LIFF initialized");
 
-// ステップ1
+  // ログイン確認
+  if (!liff.isLoggedIn()) {
+    liff.login();
+    return;
+  }
+
+  const profile = await liff.getProfile();
+  window.liffUserId = profile.userId;
+}
+
+initLiffApp().catch(console.error);
+
+// --------------------- ステップ1 ---------------------
 document.querySelectorAll(".store-btn").forEach(btn=>{
   btn.addEventListener("click",()=>{
     selectedStore = btn.dataset.store;
@@ -128,7 +143,7 @@ document.querySelectorAll(".store-btn").forEach(btn=>{
   });
 });
 
-// ステップ2
+// --------------------- ステップ2 ---------------------
 function renderMenuStep2(){
   document.getElementById("menuTitle").textContent = selectedStore+"でご予約";
   const menuList=document.getElementById("menuList");
@@ -137,7 +152,6 @@ function renderMenuStep2(){
     const now=new Date();
     const earlyDiscountEnd=new Date(now.getFullYear(),10,30);
     const discountedPrice=(menu.discount && now<=earlyDiscountEnd)? Math.round(menu.price*0.95):menu.price;
-
     const card=document.createElement("div");
     card.className="menu-card";
     card.innerHTML=`
@@ -173,27 +187,26 @@ function renderMenuStep2(){
   });
 }
 
-// 次へボタン（数量0は進めない）
+document.getElementById("backToStep1").addEventListener("click",()=>{
+  document.getElementById("step2").classList.remove("active");
+  document.getElementById("step1").classList.add("active");
+});
+
 document.getElementById("toStep3").addEventListener("click",()=>{
+  // 1つ以上選んでいるか確認
   const totalQty = Array.from(document.querySelectorAll("#step2 .qty-display"))
-                        .reduce((sum, el)=>sum+parseInt(el.textContent),0);
-  if(totalQty === 0){ alert("1つ以上選択してください"); return; }
+                        .reduce((sum, el) => sum + parseInt(el.textContent), 0);
+  if(totalQty === 0){
+    alert("1つ以上選んでください");
+    return;
+  }
+
   document.getElementById("step2").classList.remove("active");
   document.getElementById("step3").classList.add("active");
   renderStep3();
 });
 
-// 戻るボタン
-document.getElementById("backToStep1").addEventListener("click",()=>{
-  document.getElementById("step2").classList.remove("active");
-  document.getElementById("step1").classList.add("active");
-});
-document.getElementById("backToStep2").addEventListener("click",()=>{
-  document.getElementById("step3").classList.remove("active");
-  document.getElementById("step2").classList.add("active");
-});
-
-// ステップ3
+// --------------------- ステップ3 ---------------------
 function renderStep3(){
   const now=new Date();
   const receiveDate=new Date(now.getFullYear(),11,31);
@@ -212,66 +225,73 @@ function renderStep3(){
   }
 }
 
-// モーダル閉じる
-document.getElementById("modalClose").addEventListener("click",()=>{document.getElementById("imageModal").style.display="none";});
+document.getElementById("backToStep2").addEventListener("click",()=>{
+  document.getElementById("step3").classList.remove("active");
+  document.getElementById("step2").classList.add("active");
+});
 
-// 数量取得
-function getMenuSummary(){
-  return menus.map((menu,index)=>{
-    const qty = parseInt(document.querySelectorAll("#step2 .qty-display")[index].textContent);
-    return qty>0?`${menu.name} × ${qty}`:"";
-  }).filter(Boolean).join("\n");
-}
+// --------------------- モーダル閉じる ---------------------
+document.getElementById("modalClose").addEventListener("click",()=>{
+  document.getElementById("imageModal").style.display="none";
+});
 
-// 確定ボタン
-document.getElementById("confirmReservation").addEventListener("click", async ()=>{
-  const profile = await liff.getProfile();
-  const userId = profile.userId;
-
-  const payload = {
-    name: document.getElementById("customerName").value.trim()+"様",
-    tel: document.getElementById("customerTel").value.trim(),
-    store: selectedStore,
-    note: document.getElementById("customerNote").value.trim(),
-    date: document.getElementById("receiveDate").value,
-    time: document.getElementById("receiveTime").value,
-    menu: getMenuSummary(),
-    userId: userId
-  };
+// --------------------- 確定ボタン ---------------------
+document.getElementById("confirmReservation").addEventListener("click", async () => {
+  if (!liff.isLoggedIn()) { liff.login(); return; }
 
   const sendingModal = document.getElementById("sendingModal");
-  sendingModal.style.display="flex";
+  sendingModal.style.display = "flex";
 
-  try{
-    const res = await fetch(GAS_URL,{
+  try {
+    const name = document.getElementById("customerName").value.trim() + "様";
+    const tel = document.getElementById("customerTel").value.trim();
+    const store = selectedStore;
+    const note = document.getElementById("customerNote").value.trim();
+    const dateVal = document.getElementById("receiveDate").value;
+    const timeVal = document.getElementById("receiveTime").value;
+
+    let menuSummary = "";
+    menus.forEach((menu,index)=>{
+      const qty = parseInt(document.querySelectorAll("#step2 .menu-card .qty-display")[index].textContent);
+      if(qty>0) menuSummary += `${menu.name} × ${qty}\n`;
+    });
+
+    const payload = { name, tel, store, note, date: dateVal, time: timeVal, menu: menuSummary, userId: window.liffUserId };
+
+    const res = await fetch(GAS_URL, {
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(payload)
+      body: JSON.stringify(payload)
     });
+
     const result = await res.json();
+    sendingModal.style.display = "none";
+
     if(result.result==="success"){
-      sendingModal.style.display="none";
       document.getElementById("step3").classList.remove("active");
       document.getElementById("step4").classList.add("active");
-      document.getElementById("summaryBox").innerHTML=`
-        <strong>店舗：</strong>${selectedStore}<br>
-        <strong>お名前：</strong>${payload.name}<br>
-        <strong>電話番号：</strong>${payload.tel}<br>
-        <strong>受取日：</strong>${payload.date} ${formatTimeHM(payload.time)}<br>
-        <strong>ご注文：</strong><br>${payload.menu.replace(/\n/g,"<br>")}
+      document.getElementById("summaryBox").innerHTML = `
+        <strong>店舗：</strong>${store}<br>
+        <strong>お名前：</strong>${name}<br>
+        <strong>電話番号：</strong>${tel}<br>
+        <strong>受取日：</strong>${dateVal} ${formatTimeHM(timeVal)}<br>
+        <strong>ご注文：</strong><br>${menuSummary.replace(/\n/g,"<br>")}
       `;
-    } else { throw new Error(result.message||"送信失敗"); }
-  }catch(err){
-    sendingModal.style.display="none";
-    alert("送信に失敗しました。もう一度お試しください。");
+    } else {
+      alert("送信に失敗しました: "+result.message);
+    }
+  } catch(err){
+    sendingModal.style.display = "none";
     console.error(err);
+    alert("送信中にエラーが発生しました。");
   }
 });
 
-// LINEへ戻る
+// --------------------- LINEへ戻る ---------------------
 document.getElementById("backToLINE").addEventListener("click",()=>{
-  if(liff.isInClient()){ liff.closeWindow(); } else { location.reload(); }
+  if(liff.isInClient()){ liff.closeWindow(); }else{ location.reload(); }
 });
+
 </script>
 </body>
 </html>
