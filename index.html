@@ -237,7 +237,7 @@ document.getElementById("modalClose").addEventListener("click",()=>{
 
 // --------------------- 確定ボタン ---------------------
 document.getElementById("confirmReservation").addEventListener("click", async () => {
-  if (!liff.isLoggedIn()) { liff.login(); return; }
+  if(!liff.isLoggedIn()){ liff.login(); return; }
 
   const sendingModal = document.getElementById("sendingModal");
   sendingModal.style.display = "flex";
@@ -251,23 +251,29 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
     const timeVal = document.getElementById("receiveTime").value;
 
     let menuSummary = "";
-    menus.forEach((menu,index)=>{
-      const qty = parseInt(document.querySelectorAll("#step2 .menu-card .qty-display")[index].textContent);
-      if(qty>0) menuSummary += `${menu.name} × ${qty}\n`;
+    menus.forEach((menu, index) => {
+      const qty = parseInt(document.querySelectorAll("#step2 .qty-display")[index].textContent);
+      if (qty > 0) menuSummary += `${menu.name} × ${qty}\n`;
     });
+
+    if (!window.liffUserId) {
+      alert("ユーザーIDが取得できませんでした");
+      sendingModal.style.display = "none";
+      return;
+    }
 
     const payload = { name, tel, store, note, date: dateVal, time: timeVal, menu: menuSummary, userId: window.liffUserId };
 
     const res = await fetch(GAS_URL, {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
     });
 
     const result = await res.json();
     sendingModal.style.display = "none";
 
-    if(result.result==="success"){
+    if (result.result === "success") {
       document.getElementById("step3").classList.remove("active");
       document.getElementById("step4").classList.add("active");
       document.getElementById("summaryBox").innerHTML = `
@@ -278,12 +284,13 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
         <strong>ご注文：</strong><br>${menuSummary.replace(/\n/g,"<br>")}
       `;
     } else {
-      alert("送信に失敗しました: "+result.message);
+      alert("送信に失敗しました: " + (result.message || "不明なエラー"));
     }
-  } catch(err){
+
+  } catch (err) {
     sendingModal.style.display = "none";
-    console.error(err);
-    alert("送信中にエラーが発生しました。");
+    console.error("送信中エラー:", err);
+    alert("送信中にエラーが発生しました: " + err.message);
   }
 });
 
