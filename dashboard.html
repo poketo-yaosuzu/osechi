@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>おせち予約ダッシュボード</title>
+<style>
+body { font-family: "Noto Sans JP", sans-serif; background: #f9fafc; margin: 0; }
+.container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+h1 { text-align: center; margin-bottom: 20px; }
+.filter-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 20px; }
+.filter-btn {
+  background: #e0e0e0;
+  color: #333;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.95em;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.filter-btn.active {
+  background: #00c300;
+  color: #fff;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.filter-btn:hover { opacity: 0.9; }
+
+button#reloadBtn {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: #007bff;
+  color: #fff;
+  cursor: pointer;
+  margin-left: 10px;
+}
+button#reloadBtn:hover { opacity: 0.9; }
+
+table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+th, td { border: 1px solid #ddd; padding: 8px; font-size: 0.9em; text-align: left; }
+th { background: #f1f1f1; cursor: pointer; }
+tr:hover { background: #fafafa; }
+
+/* 読み込み中モーダル */
+#loadingModal {
+  display: none;
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(0,0,0,0.5);
+  color:#fff;
+  font-size:1.2em;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  z-index:1000;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🍱 おせち予約ダッシュボード</h1>
+
+  <div class="filter-buttons">
+    <button class="filter-btn active" data-store="全店">全店</button>
+    <button class="filter-btn" data-store="ポケット店">ポケット店</button>
+    <button class="filter-btn" data-store="アップティ店">アップティ店</button>
+    <button class="filter-btn" data-store="キララ店">キララ店</button>
+    <button id="reloadBtn">🔄 更新</button>
+  </div>
+
+  <table id="reservationTable">
+    <thead>
+      <tr>
+        <th data-sort="No">No</th>
+        <th data-sort="日時">日時</th>
+        <th data-sort="お名前">お名前</th>
+        <th data-sort="店舗">店舗</th>
+        <th data-sort="受取日">受取日</th>
+        <th data-sort="受取時間">受取時間</th>
+        <th data-sort="ご注文内容">ご注文内容</th>
+        <th data-sort="備考">備考</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<!-- 読み込み中モーダル -->
+<div id="loadingModal">🔄 読み込み中…</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbz2s6DHQs42pbQ6X3B9egHGBiT4gVrOW-vFf8gW49ttWipS1rpgdc0ltn2Kzt99RhrPaQ/exec"; // GAS URL
+let reservationData = [];
+let currentStore = "全店";
+let currentSort = { key: "No", asc: true };
+
+const loadingModal = document.getElementById("loadingModal");
+
+// データ取得 + テーブル描画
+async function fetchData() {
+  try {
+    loadingModal.style.display = "flex"; // 表示
+    const res = await fetch(API_URL);
+    reservationData = await res.json();
+    renderTable();
+  } catch(err) {
+    alert("データ取得に失敗しました: " + err.message);
+  } finally {
+    loadingModal.style.display = "none"; // 非表示
+  }
+}
+
+function renderTable() {
+  let filtered = reservationData;
+  if (currentStore !== "全店") {
+    filtered = filtered.filter(r => r["店舗"] === currentStore);
+  }
+
+  const tbody = document.querySelector("#reservationTable tbody");
+  tbody.innerHTML = "";
+
+  filtered.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r["No"] || ""}</td>
+      <td>${r["日時"] ? new Date(r["日時"]).toLocaleString() : ""}</td>
+      <td>${r["お名前"] || ""}</td>
+      <td>${r["店舗"] || ""}</td>
+      <td>${r["受取日"] || ""}</td>
+      <td>${r["受取時間"] || ""}</td>
+      <td>${r["ご注文内容"]?.replace(/\n/g,"<br>") || ""}</td>
+      <td>${r["備考"] || ""}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// フィルタボタン
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentStore = btn.dataset.store;
+    renderTable();
+  });
+});
+
+// ソート機能
+document.querySelectorAll("#reservationTable th").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.sort;
+    currentSort.asc = currentSort.key === key ? !currentSort.asc : true;
+    currentSort.key = key;
+    reservationData.sort((a, b) => {
+      const va = a[key] || "";
+      const vb = b[key] || "";
+      return currentSort.asc ? va.toString().localeCompare(vb.toString(), "ja") : vb.toString().localeCompare(va.toString(), "ja");
+    });
+    renderTable();
+  });
+});
+
+// 更新ボタン
+document.getElementById("reloadBtn").addEventListener("click", fetchData);
+
+// 初回ロード
+fetchData();
+</script>
+</body>
+</html>
