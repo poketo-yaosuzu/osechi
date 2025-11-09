@@ -122,6 +122,13 @@ function renderTable() {
   const tbody = document.querySelector("#reservationTable tbody");
   tbody.innerHTML = "";
 
+  if (filtered.length === 0) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="8" style="text-align:center;color:#888;">データがありません</td>`;
+    tbody.appendChild(tr);
+    return;
+  }
+
   filtered.forEach(r => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -137,6 +144,8 @@ function renderTable() {
     tbody.appendChild(tr);
   });
 }
+
+
 
 // フィルタボタン
 document.querySelectorAll(".filter-btn").forEach(btn => {
