@@ -41,6 +41,36 @@ button:hover{opacity:0.9;}
 .summary{text-align:left;background:#fff;border-radius:12px;padding:12px;margin-bottom:20px;line-height:1.6em;font-size:0.9em;box-shadow: inset 0 1px 4px rgba(0,0,0,0.05);}
 #backToLINE{background:#00c300;color:#fff;font-weight:bold;border-radius:10px;padding:12px 20px;border:none;cursor:pointer;font-size:1em;}
 #backToLINE:hover{opacity:0.9;}
+  #summaryBox table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 0.9em;
+}
+
+#summaryBox th, #summaryBox td {
+  border: 1px solid #ddd;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+#summaryBox th {
+  background: #f1f1f1;
+}
+
+#summaryBox td {
+  vertical-align: middle;
+}
+
+@media screen and (max-width: 480px) {
+  #summaryBox table, #summaryBox th, #summaryBox td {
+    font-size: 0.85em;
+  }
+  #summaryBox th, #summaryBox td {
+    padding: 4px 6px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -118,20 +148,25 @@ function formatTimeHM(timeStr){ const [h,m]=timeStr.split(":"); return `${parseI
 
 // --------------------- LIFF 初期化 ---------------------
 async function initLiffApp() {
-  await liff.init({ liffId: LIFF_ID });
-  console.log("LIFF initialized");
+  try {
+    await liff.init({ liffId: LIFF_ID });
 
-  // ログイン確認
-  if (!liff.isLoggedIn()) {
-    liff.login();
-    return;
+    if (!liff.isLoggedIn()) {
+      liff.login(); // ログインしてページ遷移
+      return;
+    }
+
+    const profile = await liff.getProfile();
+    window.liffUserId = profile.userId;
+    console.log("LIFF User ID:", window.liffUserId);
+
+  } catch (err) {
+    console.error("LIFF初期化エラー:", err);
   }
-
-  const profile = await liff.getProfile();
-  window.liffUserId = profile.userId;
 }
 
-initLiffApp().catch(console.error);
+// ページロード時に呼ぶ
+initLiffApp();
 
 // --------------------- ステップ1 ---------------------
 document.querySelectorAll(".store-btn").forEach(btn=>{
@@ -236,6 +271,7 @@ document.getElementById("modalClose").addEventListener("click",()=>{
 });
 
 // --------------------- 確定ボタン ---------------------
+// --------------------- 確定ボタン ---------------------
 document.getElementById("confirmReservation").addEventListener("click", async () => {
   if(!liff.isLoggedIn()){ liff.login(); return; }
 
@@ -243,18 +279,51 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
   sendingModal.style.display = "flex";
 
   try {
-    const name = document.getElementById("customerName").value.trim() + "様";
+    const name = document.getElementById("customerName").value.trim();
     const tel = document.getElementById("customerTel").value.trim();
     const store = selectedStore;
     const note = document.getElementById("customerNote").value.trim();
     const dateVal = document.getElementById("receiveDate").value;
     const timeVal = document.getElementById("receiveTime").value;
 
-    let menuSummary = "";
+    // 必須チェック（備考以外）
+    if(!name || !tel || !dateVal || !timeVal){
+      alert("お名前、電話番号、受取日、受取時間は必須です");
+      sendingModal.style.display = "none";
+      return;
+    }
+
+    // メニュー内容まとめ＋各行小計＋合計計算（早割対応）
+    let menuSummaryHTML = "<table style='width:100%; border-collapse: collapse;'>";
+    menuSummaryHTML += "<tr><th style='text-align:left;'>商品</th><th>数量</th><th>単価</th><th>小計</th></tr>";
+
+    let totalPrice = 0;
+    const now = new Date();
+    const earlyDiscountEnd = new Date(now.getFullYear(), 10, 30); // 11/30まで
+
     menus.forEach((menu, index) => {
       const qty = parseInt(document.querySelectorAll("#step2 .qty-display")[index].textContent);
-      if (qty > 0) menuSummary += `${menu.name} × ${qty}\n`;
+      if (qty > 0) {
+        const price = (menu.discount && now <= earlyDiscountEnd) ? Math.round(menu.price * 0.95) : menu.price;
+        const unitLabel = (menu.discount && now <= earlyDiscountEnd) ? `${formatYen(price)}（早割）` : formatYen(price);
+        const subtotal = price * qty;
+        totalPrice += subtotal;
+
+        menuSummaryHTML += `
+          <tr>
+            <td>${menu.name}</td>
+            <td style='text-align:center;'>${qty}</td>
+            <td style='text-align:right;'>${unitLabel}</td>
+            <td style='text-align:right;'>${formatYen(subtotal)}</td>
+          </tr>
+        `;
+      }
     });
+
+    menuSummaryHTML += "</table>";
+
+    const taxRate = 0.08;
+    const totalPriceWithTax = Math.round(totalPrice * (1 + taxRate));
 
     if (!window.liffUserId) {
       alert("ユーザーIDが取得できませんでした");
@@ -262,7 +331,14 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
       return;
     }
 
-    const payload = { name, tel, store, note, date: dateVal, time: timeVal, menu: menuSummary, userId: window.liffUserId };
+    const payload = { 
+      name: name + "様", 
+      tel, store, note, 
+      date: dateVal, 
+      time: timeVal, 
+      menu: menuSummaryHTML.replace(/<[^>]+>/g, ""), // LINE送信用はタグ除去
+      userId: window.liffUserId 
+    };
 
     const res = await fetch(GAS_URL, {
       method: "POST",
@@ -276,13 +352,16 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
     if (result.result === "success") {
       document.getElementById("step3").classList.remove("active");
       document.getElementById("step4").classList.add("active");
-      document.getElementById("summaryBox").innerHTML = `
-        <strong>店舗：</strong>${store}<br>
-        <strong>お名前：</strong>${name}<br>
-        <strong>電話番号：</strong>${tel}<br>
-        <strong>受取日：</strong>${dateVal} ${formatTimeHM(timeVal)}<br>
-        <strong>ご注文：</strong><br>${menuSummary.replace(/\n/g,"<br>")}
-      `;
+     document.getElementById("summaryBox").innerHTML = `
+  <strong>店舗：</strong>${store}<br>
+  <strong>お名前：</strong>${name}様<br>
+  <strong>電話番号：</strong>${tel}<br>
+  <strong>受取日：</strong>${dateVal} ${formatTimeHM(timeVal)}<br>
+  <strong>ご注文：</strong><br>${menuSummaryHTML}
+  <strong>合計金額：</strong>${formatYen(totalPrice)}<br>
+  <strong>税込合計金額：</strong>${formatYen(totalPriceWithTax)}
+`;
+
     } else {
       alert("送信に失敗しました: " + (result.message || "不明なエラー"));
     }
