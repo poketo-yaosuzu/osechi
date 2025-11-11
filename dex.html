@@ -313,42 +313,64 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
     };
 
     // --------------------- fetch 送信（application/x-www-form-urlencoded） ---------------------
-    const res = await fetch(GAS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-      body: new URLSearchParams(payload)
-    });
+    try {
+  const sendingModal = document.getElementById("sendingModal");
+  sendingModal.style.display = "flex";
 
-    if (!res.ok) {
-      sendingModal.style.display = "none";
-      throw new Error(`HTTPエラー: ${res.status}`);
-    }
+  const payload = {
+    name: name,
+    tel: tel,
+    store: store,
+    date: dateVal,
+    time: timeVal,
+    menu: menuSummaryHTML.replace(/<[^>]+>/g, ""), // タグ除去
+    total: totalPrice,
+    totalWithTax: totalPriceWithTax,
+    note: note,
+    userId: liffUserId
+  };
 
-    const result = await res.json();
-    sendingModal.style.display = "none";
+  // URLSearchParams形式で送信
+  const res = await fetch(GAS_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+    body: new URLSearchParams(payload)
+  });
 
-    if (result.result === "success") {
-      document.getElementById("step3").classList.remove("active");
-      document.getElementById("step4").classList.add("active");
-      document.getElementById("summaryBox").innerHTML = `
-        <strong>店舗：</strong>${store}<br>
-        <strong>お名前：</strong>${name}様<br>
-        <strong>電話番号：</strong>${tel}<br>
-        <strong>受取日：</strong>${dateVal} ${formatTimeHM(timeVal)}<br>
-        <strong>ご注文：</strong><br>${menuSummaryHTML}
-        <strong>合計金額：</strong>${formatYen(totalPrice)}<br>
-        <strong>税込合計金額：</strong>${formatYen(totalPriceWithTax)}
-      `;
-    } else {
-      alert("送信に失敗しました: " + (result.message || "不明なエラー"));
-    }
+  sendingModal.style.display = "none";
 
+  // レスポンスは text として受け取り JSON に変換
+  const text = await res.text();
+  let result;
+  try {
+    result = JSON.parse(text);
   } catch (err) {
-    sendingModal.style.display = "none";
-    console.error("送信中エラー:", err);
-    alert("送信中にエラーが発生しました: " + (err.message || err));
+    console.error("JSON変換エラー:", text);
+    alert("送信に失敗しました（サーバーの応答が不正です）");
+    return;
   }
-});
+
+  if (result.result === "success") {
+    document.getElementById("step3").classList.remove("active");
+    document.getElementById("step4").classList.add("active");
+    document.getElementById("summaryBox").innerHTML = `
+      <strong>店舗：</strong>${store}<br>
+      <strong>お名前：</strong>${name}様<br>
+      <strong>電話番号：</strong>${tel}<br>
+      <strong>受取日：</strong>${dateVal} ${formatTimeHM(timeVal)}<br>
+      <strong>ご注文：</strong><br>${menuSummaryHTML}
+      <strong>合計金額：</strong>${formatYen(totalPrice)}<br>
+      <strong>税込合計金額：</strong>${formatYen(totalPriceWithTax)}
+    `;
+  } else {
+    alert("送信に失敗しました: " + (result.message || "不明なエラー"));
+  }
+
+} catch (err) {
+  sendingModal.style.display = "none";
+  console.error("送信中エラー:", err);
+  alert("送信中にエラーが発生しました: " + (err.message || err));
+}
 
 // --------------------- LINEへ戻る ---------------------
 document.getElementById("backToLINE").addEventListener("click",()=>{
