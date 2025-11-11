@@ -134,7 +134,7 @@ button:hover{opacity:0.9;}
 <script>
   
 const LIFF_ID = "2008417031-yLP1bOMR"; 
-const GAS_URL = "https://script.google.com/macros/s/AKfycbz2s6DHQs42pbQ6X3B9egHGBiT4gVrOW-vFf8gW49ttWipS1rpgdc0ltn2Kzt99RhrPaQ/exec"; 
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwvcHKWuXTZXDssjwskN43tsGivXt3TR8miGH1BID5hOg2MxHZwv8tYT0--QWVNpib8MQ/exec"; 
 let selectedStore = "";
 const TAX_RATE = 0.08;
 const menus = [
@@ -146,6 +146,19 @@ function formatYen(price){ return `¥${price.toLocaleString()}`; }
 function formatWareki(date){const y=date.getFullYear()-2018; const wYear="R"+y; const month=date.getMonth()+1; const day=date.getDate(); const weekdays=["日","月","火","水","木","金","土"]; return `${wYear}年${month}月${day}日（${weekdays[date.getDay()]}）`; }
 function formatTimeHM(timeStr){ const [h,m]=timeStr.split(":"); return `${parseInt(h)}時${parseInt(m)}分`; }
 
+// LIFF初期化
+let liffUserId = "TEST_USER"; // 仮ユーザーID
+if(window.liff){
+  liff.init({ liffId: LIFF_ID })
+    .then(() => { if(liff.isLoggedIn()){ liffUserId = liff.getContext().userId || liffUserId; } })
+    .catch(err => console.error("LIFF初期化エラー:", err));
+}  
+
+  // HTMLエスケープ関数
+function escapeHTML(str){
+  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+  
 // --------------------- ステップ1 ---------------------
 document.querySelectorAll(".store-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -204,20 +217,19 @@ document.getElementById("backToStep1").addEventListener("click",()=>{
   document.getElementById("step1").classList.add("active");
 });
 
+// ステップ2→3に進む
 document.getElementById("toStep3").addEventListener("click",()=>{
-  // 1つ以上選んでいるか確認
-  const totalQty = Array.from(document.querySelectorAll("#step2 .qty-display"))
+  const totalQty = Array.from(document.querySelectorAll("#step2 .menu-card .qty-display"))
                         .reduce((sum, el) => sum + parseInt(el.textContent), 0);
   if(totalQty === 0){
     alert("1つ以上選んでください");
     return;
   }
-
   document.getElementById("step2").classList.remove("active");
   document.getElementById("step3").classList.add("active");
   renderStep3();
 });
-
+  
 // --------------------- ステップ3 ---------------------
 function renderStep3(){
   const now=new Date();
@@ -249,7 +261,6 @@ document.getElementById("modalClose").addEventListener("click",()=>{
 
 // --------------------- 確定ボタン ---------------------
 document.getElementById("confirmReservation").addEventListener("click", async () => {
-  const liffUserId = "TEST_USER"; // 仮ユーザーID
   const sendingModal = document.getElementById("sendingModal");
   sendingModal.style.display = "flex";
 
@@ -267,23 +278,25 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
       return;
     }
 
-    // メニュー集計
+    // メニュー集計（カード単位で取得）
     let menuSummaryHTML = "<table><tr><th>商品</th><th>数量</th><th>単価</th><th>小計</th></tr>";
     let totalPrice = 0;
     const now = new Date();
     const earlyDiscountEnd = new Date(now.getFullYear(), 10, 30);
 
-    menus.forEach((menu, index) => {
-      const qty = parseInt(document.querySelectorAll("#step2 .qty-display")[index].textContent);
-      if (qty > 0) {
-        const price = (menu.discount && now <= earlyDiscountEnd) ? Math.round(menu.price * 0.95) : menu.price;
-        const subtotal = price * qty;
+    const menuCards = document.querySelectorAll("#step2 .menu-card");
+    menuCards.forEach((card, index)=>{
+      const qty = parseInt(card.querySelector(".qty-display").textContent);
+      if(qty>0){
+        const menu = menus[index];
+        const price = (menu.discount && now <= earlyDiscountEnd)? Math.round(menu.price*0.95):menu.price;
+        const subtotal = price*qty;
         totalPrice += subtotal;
-        menuSummaryHTML += `<tr><td>${menu.name}</td><td>${qty}</td><td>${formatYen(price)}</td><td>${formatYen(subtotal)}</td></tr>`;
+        menuSummaryHTML += `<tr><td>${escapeHTML(menu.name)}</td><td>${qty}</td><td>${formatYen(price)}</td><td>${formatYen(subtotal)}</td></tr>`;
       }
     });
     menuSummaryHTML += "</table>";
-    const totalPriceWithTax = Math.round(totalPrice * 1.08);
+    const totalPriceWithTax = Math.round(totalPrice*1.08);
 
     const payload = {
       name: name,
@@ -291,7 +304,7 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
       store,
       date: dateVal,
       time: timeVal,
-      menu: menuSummaryHTML.replace(/<[^>]+>/g, ""),
+      menu: menuSummaryHTML.replace(/<[^>]+>/g, ""), // テキストのみ送信
       total: totalPrice,
       totalWithTax: totalPriceWithTax,
       note,
@@ -299,8 +312,8 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
     };
 
     const res = await fetch(GAS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      method:"POST",
+      headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
       body: new URLSearchParams(payload)
     });
 
@@ -316,14 +329,14 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
 
     sendingModal.style.display = "none";
 
-    if (result.result === "success") {
+    if(result.result==="success"){
       document.getElementById("step3").classList.remove("active");
       document.getElementById("step4").classList.add("active");
       document.getElementById("summaryBox").innerHTML = `
-        <strong>店舗：</strong>${store}<br>
-        <strong>お名前：</strong>${name}様<br>
-        <strong>電話番号：</strong>${tel}<br>
-        <strong>受取日：</strong>${dateVal} ${formatTimeHM(timeVal)}<br>
+        <strong>店舗：</strong>${escapeHTML(store)}<br>
+        <strong>お名前：</strong>${escapeHTML(name)}様<br>
+        <strong>電話番号：</strong>${escapeHTML(tel)}<br>
+        <strong>受取日：</strong>${escapeHTML(dateVal)} ${formatTimeHM(timeVal)}<br>
         <strong>ご注文：</strong><br>${menuSummaryHTML}
         <strong>合計金額：</strong>${formatYen(totalPrice)}<br>
         <strong>税込合計金額：</strong>${formatYen(totalPriceWithTax)}
@@ -332,7 +345,7 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
       alert("送信に失敗しました: " + (result.message || "不明なエラー"));
     }
 
-  } catch (err) {
+  } catch(err){
     sendingModal.style.display = "none";
     console.error("送信中エラー:", err);
     alert("送信中にエラーが発生しました: " + (err.message || err));

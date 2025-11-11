@@ -52,7 +52,7 @@ tr:hover { background: #fafafa; }
   background: rgba(0,0,0,0.5);
   color:#fff;
   font-size:1.2em;
-  display:flex;
+  display:flex; /* 二重指定なので整理 */
   justify-content:center;
   align-items:center;
   z-index:1000;
@@ -92,7 +92,7 @@ tr:hover { background: #fafafa; }
 <div id="loadingModal">🔄 読み込み中…</div>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbz2s6DHQs42pbQ6X3B9egHGBiT4gVrOW-vFf8gW49ttWipS1rpgdc0ltn2Kzt99RhrPaQ/exec"; // GAS URL
+const API_URL = "https://script.google.com/macros/s/AKfycbwvcHKWuXTZXDssjwskN43tsGivXt3TR8miGH1BID5hOg2MxHZwv8tYT0--QWVNpib8MQ/exec"; // GAS URL
 let reservationData = [];
 let currentStore = "全店";
 let currentSort = { key: "No", asc: true };
@@ -102,19 +102,26 @@ const loadingModal = document.getElementById("loadingModal");
 // データ取得 + テーブル描画
 async function fetchData() {
   try {
-    loadingModal.style.display = "flex"; // 表示
+    loadingModal.style.display = "flex";
     const res = await fetch(API_URL);
-    reservationData = await res.json();
-    renderTable();
+    const json = await res.json();
+    if(json.result === "success") {
+      reservationData = json.data;
+    } else {
+      alert("データ取得に失敗しました: " + (json.message || "不明なエラー"));
+      reservationData = [];
+    }
+    renderTable(); // fetch後に描画
   } catch(err) {
     alert("データ取得に失敗しました: " + err.message);
   } finally {
-    loadingModal.style.display = "none"; // 非表示
+    loadingModal.style.display = "none";
   }
 }
 
+
 function renderTable() {
-  let filtered = reservationData;
+  let filtered = reservationData.slice(); // コピーして操作
   if (currentStore !== "全店") {
     filtered = filtered.filter(r => r["店舗"] === currentStore);
   }
@@ -129,20 +136,22 @@ function renderTable() {
     return;
   }
 
-  filtered.forEach(r => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${r["No"] || ""}</td>
-      <td>${r["日時"] ? new Date(r["日時"]).toLocaleString() : ""}</td>
-      <td>${r["お名前"] || ""}</td>
-      <td>${r["店舗"] || ""}</td>
-      <td>${r["受取日"] || ""}</td>
-      <td>${r["受取時間"] || ""}</td>
-      <td>${r["ご注文内容"]?.replace(/\n/g,"<br>") || ""}</td>
-      <td>${r["備考"] || ""}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+filtered.forEach(r => {
+  const tr = document.createElement("tr");
+  const dateStr = r["日時"] ? new Date(r["日時"]) : null;
+  tr.innerHTML = `
+    <td>${r["No"] || ""}</td>
+    <td>${dateStr ? dateStr.toLocaleString() : ""}</td>
+    <td>${r["お名前"] || ""}</td>
+    <td>${r["店舗"] || ""}</td>
+    <td>${r["受取日"] || ""}</td>
+    <td>${r["受取時間"] || ""}</td>
+    <td>${r["ご注文内容"]?.replace(/\n/g,"<br>") || ""}</td>
+    <td>${r["備考"] || ""}</td>
+  `;
+  tbody.appendChild(tr);
+});
+
 }
 
 
@@ -163,11 +172,28 @@ document.querySelectorAll("#reservationTable th").forEach(th => {
     const key = th.dataset.sort;
     currentSort.asc = currentSort.key === key ? !currentSort.asc : true;
     currentSort.key = key;
-    reservationData.sort((a, b) => {
-      const va = a[key] || "";
-      const vb = b[key] || "";
-      return currentSort.asc ? va.toString().localeCompare(vb.toString(), "ja") : vb.toString().localeCompare(va.toString(), "ja");
+
+    reservationData.sort((a,b) => {
+      let va = a[key] || "";
+      let vb = b[key] || "";
+
+      if(key === "日時") {
+        va = new Date(va);
+        vb = new Date(vb);
+        return currentSort.asc ? va - vb : vb - va;
+      }
+
+      if(key === "受取時間") {
+        const [hA,mA]=va.split(":").map(Number);
+        const [hB,mB]=vb.split(":").map(Number);
+        return currentSort.asc ? (hA*60+mA)-(hB*60+mB) : (hB*60+mB)-(hA*60+mA);
+      }
+
+      return currentSort.asc
+        ? va.toString().localeCompare(vb.toString(), "ja")
+        : vb.toString().localeCompare(va.toString(), "ja");
     });
+
     renderTable();
   });
 });
