@@ -147,22 +147,7 @@ function formatWareki(date){const y=date.getFullYear()-2018; const wYear="R"+y; 
 function formatTimeHM(timeStr){ const [h,m]=timeStr.split(":"); return `${parseInt(h)}時${parseInt(m)}分`; }
 
 // LIFF初期化
-let liffUserId = "";
 
-async function initLIFF() {
-  try {
-    await liff.init({ liffId: LIFF_ID });
-    
-    if (!liff.isLoggedIn()) liff.login();
-    else liffUserId = liff.getContext().userId || "";
-  } catch (err) {
-    console.error(err);
-    alert("LINEログインに失敗しました");
-  }
-}
-// ページ読み込み時に初期化
-window.addEventListener("load", initLIFF);
-  
   // HTMLエスケープ関数
 function escapeHTML(str){
   return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -270,10 +255,7 @@ document.getElementById("modalClose").addEventListener("click",()=>{
 
 // --------------------- 確定ボタン ---------------------
 document.getElementById("confirmReservation").addEventListener("click", async () => {
-  if (!liffUserId) {
-    alert("LINEログインが完了していません。");
-    return;
-  }
+
   const sendingModal = document.getElementById("sendingModal");
   sendingModal.style.display = "flex";
 
@@ -331,23 +313,23 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
       userId: liffUserId
     };
 
-    const res = await fetch(GAS_URL, {
+     const res = await fetch(GAS_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
       body: new URLSearchParams(payload)
     });
 
     const text = await res.text();
-    console.log(text);               // ここでどんな文字列が来るか確認
-        const data = JSON.parse(text);   // 安全に JSON に変換
+    console.log("GAS応答:", text);
+
     let result;
-    try { 
-      result = JSON.parse(text); 
-    } catch { 
-      console.error("JSON変換エラー:", text); 
-      alert("送信に失敗しました（サーバーの応答が不正です）"); 
-      sendingModal.style.display = "none"; 
-      return; 
+    try {
+      result = JSON.parse(text);
+    } catch (e) {
+      console.error("JSON変換エラー:", text);
+      alert("サーバーからの応答が不正です。");
+      sendingModal.style.display = "none";
+      return;
     }
 
     sendingModal.style.display = "none";
@@ -359,7 +341,7 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
 
       // 表示用HTML（簡易テーブル）
       let menuSummaryHTML = "<table><tr><th>商品</th><th>数量</th></tr>";
-      menuSummaryText.split("\n").forEach(line => {
+      menuSummaryText.split("\n").filter(line => line.trim() !== "").forEach(line => {
         const [name, qty] = line.split(" × ");
         menuSummaryHTML += `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(qty)}</td></tr>`;
       });
