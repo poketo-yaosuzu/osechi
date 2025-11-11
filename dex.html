@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja">  
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -132,7 +132,6 @@ button:hover{opacity:0.9;}
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
-  
 const LIFF_ID = "2008417031-yLP1bOMR"; 
 const GAS_URL = "https://script.google.com/macros/s/AKfycbz2s6DHQs42pbQ6X3B9egHGBiT4gVrOW-vFf8gW49ttWipS1rpgdc0ltn2Kzt99RhrPaQ/exec"; 
 let selectedStore = "";
@@ -200,20 +199,15 @@ function renderMenuStep2(){
   });
 }
 
+// 戻る・次へボタン
 document.getElementById("backToStep1").addEventListener("click",()=>{
   document.getElementById("step2").classList.remove("active");
   document.getElementById("step1").classList.add("active");
 });
-
 document.getElementById("toStep3").addEventListener("click",()=>{
-  // 1つ以上選んでいるか確認
   const totalQty = Array.from(document.querySelectorAll("#step2 .qty-display"))
                         .reduce((sum, el) => sum + parseInt(el.textContent), 0);
-  if(totalQty === 0){
-    alert("1つ以上選んでください");
-    return;
-  }
-
+  if(totalQty === 0){ alert("1つ以上選んでください"); return; }
   document.getElementById("step2").classList.remove("active");
   document.getElementById("step3").classList.add("active");
   renderStep3();
@@ -237,21 +231,19 @@ function renderStep3(){
     });
   }
 }
-
 document.getElementById("backToStep2").addEventListener("click",()=>{
   document.getElementById("step3").classList.remove("active");
   document.getElementById("step2").classList.add("active");
 });
 
-// --------------------- モーダル閉じる ---------------------
+// モーダル閉じる
 document.getElementById("modalClose").addEventListener("click",()=>{
   document.getElementById("imageModal").style.display="none";
 });
 
 // --------------------- 確定ボタン ---------------------
 document.getElementById("confirmReservation").addEventListener("click", async () => {
-  // LINE連携は一旦止めて仮ユーザーIDを使用
-  const liffUserId = "TEST_USER"; // テスト用の仮ID
+  const liffUserId = "TEST_USER"; // 仮ID
 
   const sendingModal = document.getElementById("sendingModal");
   sendingModal.style.display = "flex";
@@ -264,67 +256,54 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
     const dateVal = document.getElementById("receiveDate").value;
     const timeVal = document.getElementById("receiveTime").value;
 
-    // 必須チェック（備考以外）
     if(!name || !tel || !dateVal || !timeVal){
       alert("お名前、電話番号、受取日、受取時間は必須です");
       sendingModal.style.display = "none";
       return;
     }
 
-    // メニュー内容まとめ＋各行小計＋合計計算（早割対応）
+    // メニューまとめ
     let menuSummaryHTML = "<table style='width:100%; border-collapse: collapse;'>";
-    menuSummaryHTML += "<tr><th style='text-align:left;'>商品</th><th>数量</th><th>単価</th><th>小計</th></tr>";
-
+    menuSummaryHTML += "<tr><th>商品</th><th>数量</th><th>単価</th><th>小計</th></tr>";
     let totalPrice = 0;
     const now = new Date();
-    const earlyDiscountEnd = new Date(now.getFullYear(), 10, 30); // 11/30まで
+    const earlyDiscountEnd = new Date(now.getFullYear(), 10, 30);
 
     menus.forEach((menu, index) => {
       const qty = parseInt(document.querySelectorAll("#step2 .qty-display")[index].textContent);
       if (qty > 0) {
         const price = (menu.discount && now <= earlyDiscountEnd) ? Math.round(menu.price * 0.95) : menu.price;
-        const unitLabel = (menu.discount && now <= earlyDiscountEnd) ? `${formatYen(price)}（早割）` : formatYen(price);
         const subtotal = price * qty;
         totalPrice += subtotal;
-
-        menuSummaryHTML += `
-          <tr>
-            <td>${menu.name}</td>
-            <td style='text-align:center;'>${qty}</td>
-            <td style='text-align:right;'>${unitLabel}</td>
-            <td style='text-align:right;'>${formatYen(subtotal)}</td>
-          </tr>
-        `;
+        menuSummaryHTML += `<tr>
+          <td>${menu.name}</td>
+          <td style='text-align:center;'>${qty}</td>
+          <td style='text-align:right;'>${formatYen(price)}</td>
+          <td style='text-align:right;'>${formatYen(subtotal)}</td>
+        </tr>`;
       }
     });
-
     menuSummaryHTML += "</table>";
-
-    const taxRate = 0.08;
-    const totalPriceWithTax = Math.round(totalPrice * (1 + taxRate));
+    const totalPriceWithTax = Math.round(totalPrice * (1 + TAX_RATE));
 
     const payload = { 
       name: name + "様", 
       tel, store, note, 
       date: dateVal, 
       time: timeVal, 
-      menu: menuSummaryHTML.replace(/<[^>]+>/g, ""), // タグ除去
-      userId: liffUserId // 仮ユーザーID
+      menu: menuSummaryHTML.replace(/<[^>]+>/g, ""), 
+      userId: liffUserId
     };
 
-    // --------------------- fetch 送信（application/x-www-form-urlencoded） ---------------------
     const res = await fetch(GAS_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-      body: new URLSearchParams(payload)
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
     });
 
-    if (!res.ok) {
-      sendingModal.style.display = "none";
-      throw new Error(`HTTPエラー: ${res.status}`);
-    }
-
+    if (!res.ok) throw new Error(`HTTPエラー: ${res.status}`);
     const result = await res.json();
+
     sendingModal.style.display = "none";
 
     if (result.result === "success") {
@@ -346,15 +325,14 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
   } catch (err) {
     sendingModal.style.display = "none";
     console.error("送信中エラー:", err);
-    alert("送信中にエラーが発生しました: " + (err.message || err));
+    alert("送信中にエラーが発生しました: " + err.message);
   }
 });
 
 // --------------------- LINEへ戻る ---------------------
 document.getElementById("backToLINE").addEventListener("click",()=>{
-  if(window.liff && liff.isInClient && liff.isInClient()){ liff.closeWindow(); }else{ location.reload(); }
+  if(liff.isInClient()){ liff.closeWindow(); } else { location.reload(); }
 });
-
 </script>
 </body>
 </html>
