@@ -147,13 +147,22 @@ function formatWareki(date){const y=date.getFullYear()-2018; const wYear="R"+y; 
 function formatTimeHM(timeStr){ const [h,m]=timeStr.split(":"); return `${parseInt(h)}時${parseInt(m)}分`; }
 
 // LIFF初期化
-let liffUserId = "TEST_USER"; // 仮ユーザーID
-if(window.liff){
-  liff.init({ liffId: LIFF_ID })
-    .then(() => { if(liff.isLoggedIn()){ liffUserId = liff.getContext().userId || liffUserId; } })
-    .catch(err => console.error("LIFF初期化エラー:", err));
-}  
+let liffUserId = "";
 
+async function initLIFF() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    
+    if (!liff.isLoggedIn()) liff.login();
+    else liffUserId = liff.getContext().userId || "";
+  } catch (err) {
+    console.error(err);
+    alert("LINEログインに失敗しました");
+  }
+}
+// ページ読み込み時に初期化
+window.addEventListener("load", initLIFF);
+  
   // HTMLエスケープ関数
 function escapeHTML(str){
   return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -261,6 +270,10 @@ document.getElementById("modalClose").addEventListener("click",()=>{
 
 // --------------------- 確定ボタン ---------------------
 document.getElementById("confirmReservation").addEventListener("click", async () => {
+  if (!liffUserId) {
+    alert("LINEログインが完了していません。");
+    return;
+  }
   const sendingModal = document.getElementById("sendingModal");
   sendingModal.style.display = "flex";
 
@@ -278,53 +291,59 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
       return;
     }
 
-    // メニュー集計（カード単位で取得）
-    let menuSummaryHTML = "<table><tr><th>商品</th><th>数量</th><th>単価</th><th>小計</th></tr>";
+    // -------------------- メニュー集計 --------------------
+    let menuSummaryText = ""; // 商品名＋数量のみ
     let totalPrice = 0;
     const now = new Date();
     const earlyDiscountEnd = new Date(now.getFullYear(), 10, 30);
 
     const menuCards = document.querySelectorAll("#step2 .menu-card");
-    menuCards.forEach((card, index)=>{
+    menuCards.forEach((card, index) => {
       const qty = parseInt(card.querySelector(".qty-display").textContent);
-      if(qty>0){
+      if (qty > 0) {
         const menu = menus[index];
-        const price = (menu.discount && now <= earlyDiscountEnd)? Math.round(menu.price*0.95):menu.price;
-        const subtotal = price*qty;
+        const price = (menu.discount && now <= earlyDiscountEnd) ? Math.round(menu.price * 0.95) : menu.price;
+        const subtotal = price * qty;
         totalPrice += subtotal;
-        menuSummaryHTML += `<tr><td>${escapeHTML(menu.name)}</td><td>${qty}</td><td>${formatYen(price)}</td><td>${formatYen(subtotal)}</td></tr>`;
+        menuSummaryText += `${menu.name} × ${qty}\n`;
       }
     });
-    menuSummaryHTML += "</table>";
-    const totalPriceWithTax = Math.round(totalPrice*1.08);
 
+    if (!menuSummaryText) {
+      alert("1つ以上商品を選んでください");
+      sendingModal.style.display = "none";
+      return;
+    }
+
+    const totalPriceWithTax = Math.round(totalPrice * (1 + TAX_RATE));
+
+    // -------------------- GAS送信 --------------------
     const payload = {
-      name: name,
+      name,
       tel,
       store,
       date: dateVal,
       time: timeVal,
-      menu: menuSummaryHTML.replace(/<[^>]+>/g, ""), // テキストのみ送信
+      menu: menuSummaryText.trim(), // 商品名＋数量だけ送信
       total: totalPrice,
       totalWithTax: totalPriceWithTax,
       note,
       userId: liffUserId
     };
 
-const res = await fetch(GAS_URL, { 
-  method: "POST",
-  headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-  body: new URLSearchParams(payload)
-});
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: new URLSearchParams(payload)
+    });
 
-    const text = await res.text();   // ←まず文字列で取得
+    const text = await res.text();
     console.log(text);               // ここでどんな文字列が来るか確認
-    
-    const data = JSON.parse(text);   // 安全に JSON に変換
-    
+        const data = JSON.parse(text);   // 安全に JSON に変換
     let result;
-    try { result = JSON.parse(text); } 
-    catch { 
+    try { 
+      result = JSON.parse(text); 
+    } catch { 
       console.error("JSON変換エラー:", text); 
       alert("送信に失敗しました（サーバーの応答が不正です）"); 
       sendingModal.style.display = "none"; 
@@ -333,9 +352,19 @@ const res = await fetch(GAS_URL, {
 
     sendingModal.style.display = "none";
 
-    if(result.result==="success"){
+    if (result.result === "success") {
+      // -------------------- 完了画面表示 --------------------
       document.getElementById("step3").classList.remove("active");
       document.getElementById("step4").classList.add("active");
+
+      // 表示用HTML（簡易テーブル）
+      let menuSummaryHTML = "<table><tr><th>商品</th><th>数量</th></tr>";
+      menuSummaryText.split("\n").forEach(line => {
+        const [name, qty] = line.split(" × ");
+        menuSummaryHTML += `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(qty)}</td></tr>`;
+      });
+      menuSummaryHTML += "</table>";
+
       document.getElementById("summaryBox").innerHTML = `
         <strong>店舗：</strong>${escapeHTML(store)}<br>
         <strong>お名前：</strong>${escapeHTML(name)}様<br>
@@ -349,13 +378,12 @@ const res = await fetch(GAS_URL, {
       alert("送信に失敗しました: " + (result.message || "不明なエラー"));
     }
 
-  } catch(err){
+  } catch (err) {
     sendingModal.style.display = "none";
     console.error("送信中エラー:", err);
     alert("送信中にエラーが発生しました: " + (err.message || err));
   }
 });
-
 // --------------------- LINEへ戻る ---------------------
 document.getElementById("backToLINE").addEventListener("click",()=>{
   if(window.liff && liff.isInClient && liff.isInClient()){ liff.closeWindow(); }else{ location.reload(); }
