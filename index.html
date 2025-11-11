@@ -352,31 +352,37 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
 
     sendingModal.style.display = "none";
 
-    if (result.result === "success") {
-      // -------------------- 完了画面表示 --------------------
-      document.getElementById("step3").classList.remove("active");
-      document.getElementById("step4").classList.add("active");
+if (result.result === "success") {
+  // -------------------- 完了画面表示 --------------------
+  const step3 = document.getElementById("step3");
+  const step4 = document.getElementById("step4");
 
-      // 表示用HTML（簡易テーブル）
-      let menuSummaryHTML = "<table><tr><th>商品</th><th>数量</th></tr>";
-      menuSummaryText.split("\n").filter(line => line.trim() !== "").forEach(line => {
-        const [name, qty] = line.split(" × ");
-        menuSummaryHTML += `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(qty)}</td></tr>`;
-      });
-      menuSummaryHTML += "</table>";
+  step3.classList.remove("active");
+  step3.style.display = "none";   // ← これを追加
+  step4.classList.add("active");
+  step4.style.display = "block";  // ← これを追加
 
-      document.getElementById("summaryBox").innerHTML = `
-        <strong>店舗：</strong>${escapeHTML(store)}<br>
-        <strong>お名前：</strong>${escapeHTML(name)}様<br>
-        <strong>電話番号：</strong>${escapeHTML(tel)}<br>
-        <strong>受取日：</strong>${escapeHTML(dateVal)} ${formatTimeHM(timeVal)}<br>
-        <strong>ご注文：</strong><br>${menuSummaryHTML}
-        <strong>合計金額：</strong>${formatYen(totalPrice)}<br>
-        <strong>税込合計金額：</strong>${formatYen(totalPriceWithTax)}
-      `;
-    } else {
-      alert("送信に失敗しました: " + (result.message || "不明なエラー"));
-    }
+  // 表示用HTML（簡易テーブル）
+  let menuSummaryHTML = "<table><tr><th>商品</th><th>数量</th></tr>";
+  menuSummaryText.split("\n").filter(line => line.trim() !== "").forEach(line => {
+    const [name, qty] = line.split(" × ");
+    menuSummaryHTML += `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(qty)}</td></tr>`;
+  });
+  menuSummaryHTML += "</table>";
+
+  document.getElementById("summaryBox").innerHTML = `
+    <strong>店舗：</strong>${escapeHTML(store)}<br>
+    <strong>お名前：</strong>${escapeHTML(name)}様<br>
+    <strong>電話番号：</strong>${escapeHTML(tel)}<br>
+    <strong>受取日：</strong>${escapeHTML(dateVal)} ${formatTimeHM(timeVal)}<br>
+    <strong>ご注文：</strong><br>${menuSummaryHTML}
+    <strong>合計金額：</strong>${formatYen(totalPrice)}<br>
+    <strong>税込合計金額：</strong>${formatYen(totalPriceWithTax)}
+  `;
+} else {
+  alert("送信に失敗しました: " + (result.message || "不明なエラー"));
+}
+
 
   } catch (err) {
     sendingModal.style.display = "none";
@@ -385,8 +391,12 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
   }
 });
 // --------------------- LINEへ戻る ---------------------
-document.getElementById("backToLINE").addEventListener("click",()=>{
-  if(window.liff && liff.isInClient && liff.isInClient()){ liff.closeWindow(); }else{ location.reload(); }
+document.getElementById("backToLINE").addEventListener("click", () => {
+  if (liff && liff.isInClient()) {
+    liff.closeWindow();
+  } else {
+    alert("LINEアプリからアクセスしてください");
+  }
 });
 
 </script>
