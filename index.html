@@ -359,10 +359,11 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
 
       // 表示用HTML（簡易テーブル）
       let menuSummaryHTML = "<table><tr><th>商品</th><th>数量</th></tr>";
-      menuSummaryText.split("\n").forEach(line => {
-        const [name, qty] = line.split(" × ");
-        menuSummaryHTML += `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(qty)}</td></tr>`;
+      menuSummaryText.split("\n").filter(line => line.trim() !== "").forEach(line => {
+      const [name, qty] = line.split(" × ");
+      menuSummaryHTML += `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(qty)}</td></tr>`;
       });
+
       menuSummaryHTML += "</table>";
 
       document.getElementById("summaryBox").innerHTML = `
