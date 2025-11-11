@@ -311,13 +311,17 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
       userId: liffUserId
     };
 
-    const res = await fetch(GAS_URL, {
-      method:"POST",
-      headers:{ "Content-Type":"application/x-www-form-urlencoded;charset=UTF-8" },
-      body: new URLSearchParams(payload)
-    });
+const res = await fetch(GAS_URL, { 
+  method: "POST",
+  headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+  body: new URLSearchParams(payload)
+});
 
-    const text = await res.text();
+    const text = await res.text();   // ←まず文字列で取得
+    console.log(text);               // ここでどんな文字列が来るか確認
+    
+    const data = JSON.parse(text);   // 安全に JSON に変換
+    
     let result;
     try { result = JSON.parse(text); } 
     catch { 
