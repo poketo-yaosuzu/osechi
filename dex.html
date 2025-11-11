@@ -147,15 +147,14 @@ function formatWareki(date){const y=date.getFullYear()-2018; const wYear="R"+y; 
 function formatTimeHM(timeStr){ const [h,m]=timeStr.split(":"); return `${parseInt(h)}時${parseInt(m)}分`; }
 
 // --------------------- ステップ1 ---------------------
-document.querySelectorAll(".store-btn").forEach(btn=>{
-  btn.addEventListener("click",()=>{
+document.querySelectorAll(".store-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
     selectedStore = btn.dataset.store;
     document.getElementById("step1").classList.remove("active");
     document.getElementById("step2").classList.add("active");
     renderMenuStep2();
   });
 });
-
 // --------------------- ステップ2 ---------------------
 function renderMenuStep2(){
   document.getElementById("menuTitle").textContent = selectedStore+"でご予約";
@@ -250,9 +249,7 @@ document.getElementById("modalClose").addEventListener("click",()=>{
 
 // --------------------- 確定ボタン ---------------------
 document.getElementById("confirmReservation").addEventListener("click", async () => {
-  // LINE連携は一旦止めて仮ユーザーIDを使用
-  const liffUserId = "TEST_USER"; // テスト用の仮ID
-
+  const liffUserId = "TEST_USER"; // 仮ユーザーID
   const sendingModal = document.getElementById("sendingModal");
   sendingModal.style.display = "flex";
 
@@ -264,113 +261,83 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
     const dateVal = document.getElementById("receiveDate").value;
     const timeVal = document.getElementById("receiveTime").value;
 
-    // 必須チェック（備考以外）
-    if(!name || !tel || !dateVal || !timeVal){
+    if (!name || !tel || !dateVal || !timeVal) {
       alert("お名前、電話番号、受取日、受取時間は必須です");
       sendingModal.style.display = "none";
       return;
     }
 
-    // メニュー内容まとめ＋各行小計＋合計計算（早割対応）
-    let menuSummaryHTML = "<table style='width:100%; border-collapse: collapse;'>";
-    menuSummaryHTML += "<tr><th style='text-align:left;'>商品</th><th>数量</th><th>単価</th><th>小計</th></tr>";
-
+    // メニュー集計
+    let menuSummaryHTML = "<table><tr><th>商品</th><th>数量</th><th>単価</th><th>小計</th></tr>";
     let totalPrice = 0;
     const now = new Date();
-    const earlyDiscountEnd = new Date(now.getFullYear(), 10, 30); // 11/30まで
+    const earlyDiscountEnd = new Date(now.getFullYear(), 10, 30);
 
     menus.forEach((menu, index) => {
       const qty = parseInt(document.querySelectorAll("#step2 .qty-display")[index].textContent);
       if (qty > 0) {
         const price = (menu.discount && now <= earlyDiscountEnd) ? Math.round(menu.price * 0.95) : menu.price;
-        const unitLabel = (menu.discount && now <= earlyDiscountEnd) ? `${formatYen(price)}（早割）` : formatYen(price);
         const subtotal = price * qty;
         totalPrice += subtotal;
-
-        menuSummaryHTML += `
-          <tr>
-            <td>${menu.name}</td>
-            <td style='text-align:center;'>${qty}</td>
-            <td style='text-align:right;'>${unitLabel}</td>
-            <td style='text-align:right;'>${formatYen(subtotal)}</td>
-          </tr>
-        `;
+        menuSummaryHTML += `<tr><td>${menu.name}</td><td>${qty}</td><td>${formatYen(price)}</td><td>${formatYen(subtotal)}</td></tr>`;
       }
     });
-
     menuSummaryHTML += "</table>";
+    const totalPriceWithTax = Math.round(totalPrice * 1.08);
 
-    const taxRate = 0.08;
-    const totalPriceWithTax = Math.round(totalPrice * (1 + taxRate));
-
-    const payload = { 
-      name: name + "様", 
-      tel, store, note, 
-      date: dateVal, 
-      time: timeVal, 
-      menu: menuSummaryHTML.replace(/<[^>]+>/g, ""), // タグ除去
-      userId: liffUserId // 仮ユーザーID
+    const payload = {
+      name: name,
+      tel,
+      store,
+      date: dateVal,
+      time: timeVal,
+      menu: menuSummaryHTML.replace(/<[^>]+>/g, ""),
+      total: totalPrice,
+      totalWithTax: totalPriceWithTax,
+      note,
+      userId: liffUserId
     };
 
-    // --------------------- fetch 送信（application/x-www-form-urlencoded） ---------------------
-    try {
-  const sendingModal = document.getElementById("sendingModal");
-  sendingModal.style.display = "flex";
+    const res = await fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      body: new URLSearchParams(payload)
+    });
 
-  const payload = {
-    name: name,
-    tel: tel,
-    store: store,
-    date: dateVal,
-    time: timeVal,
-    menu: menuSummaryHTML.replace(/<[^>]+>/g, ""), // タグ除去
-    total: totalPrice,
-    totalWithTax: totalPriceWithTax,
-    note: note,
-    userId: liffUserId
-  };
+    const text = await res.text();
+    let result;
+    try { result = JSON.parse(text); } 
+    catch { 
+      console.error("JSON変換エラー:", text); 
+      alert("送信に失敗しました（サーバーの応答が不正です）"); 
+      sendingModal.style.display = "none"; 
+      return; 
+    }
 
-  // URLSearchParams形式で送信
-  const res = await fetch(GAS_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-    body: new URLSearchParams(payload)
-  });
+    sendingModal.style.display = "none";
 
-  sendingModal.style.display = "none";
+    if (result.result === "success") {
+      document.getElementById("step3").classList.remove("active");
+      document.getElementById("step4").classList.add("active");
+      document.getElementById("summaryBox").innerHTML = `
+        <strong>店舗：</strong>${store}<br>
+        <strong>お名前：</strong>${name}様<br>
+        <strong>電話番号：</strong>${tel}<br>
+        <strong>受取日：</strong>${dateVal} ${formatTimeHM(timeVal)}<br>
+        <strong>ご注文：</strong><br>${menuSummaryHTML}
+        <strong>合計金額：</strong>${formatYen(totalPrice)}<br>
+        <strong>税込合計金額：</strong>${formatYen(totalPriceWithTax)}
+      `;
+    } else {
+      alert("送信に失敗しました: " + (result.message || "不明なエラー"));
+    }
 
-  // レスポンスは text として受け取り JSON に変換
-  const text = await res.text();
-  let result;
-  try {
-    result = JSON.parse(text);
   } catch (err) {
-    console.error("JSON変換エラー:", text);
-    alert("送信に失敗しました（サーバーの応答が不正です）");
-    return;
+    sendingModal.style.display = "none";
+    console.error("送信中エラー:", err);
+    alert("送信中にエラーが発生しました: " + (err.message || err));
   }
-
-  if (result.result === "success") {
-    document.getElementById("step3").classList.remove("active");
-    document.getElementById("step4").classList.add("active");
-    document.getElementById("summaryBox").innerHTML = `
-      <strong>店舗：</strong>${store}<br>
-      <strong>お名前：</strong>${name}様<br>
-      <strong>電話番号：</strong>${tel}<br>
-      <strong>受取日：</strong>${dateVal} ${formatTimeHM(timeVal)}<br>
-      <strong>ご注文：</strong><br>${menuSummaryHTML}
-      <strong>合計金額：</strong>${formatYen(totalPrice)}<br>
-      <strong>税込合計金額：</strong>${formatYen(totalPriceWithTax)}
-    `;
-  } else {
-    alert("送信に失敗しました: " + (result.message || "不明なエラー"));
-  }
-
-} catch (err) {
-  sendingModal.style.display = "none";
-  console.error("送信中エラー:", err);
-  alert("送信中にエラーが発生しました: " + (err.message || err));
-}
+});
 
 // --------------------- LINEへ戻る ---------------------
 document.getElementById("backToLINE").addEventListener("click",()=>{
