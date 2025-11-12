@@ -152,16 +152,17 @@ let liffUserId = "";
 
 async function initLIFF() {
   try {
-    await liff.init({ liffId: LIFF_ID });
-    
+    await liff.init({ liffId: "2008417031-yLP1bOMR" });
     if (!liff.isLoggedIn()) liff.login();
-    else liffUserId = liff.getContext().userId || "";
+    const profile = await liff.getProfile();
+    liffUserId = profile.userId || "";
+    console.log("LIFF userId:", liffUserId);
+    document.getElementById("sendBtn").disabled = false; // 送信ボタン有効化
   } catch (err) {
-    console.error(err);
-    alert("LINEログインに失敗しました");
+    console.error("LIFF初期化エラー:", err);
   }
 }
-// ページ読み込み時に初期化
+
 window.addEventListener("load", initLIFF);
   
   // HTMLエスケープ関数
@@ -319,18 +320,22 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
     const totalPriceWithTax = Math.round(totalPrice * (1 + TAX_RATE));
 
     // -------------------- GAS送信 --------------------
-    const payload = {
-      name,
-      tel,
-      store,
-      date: dateVal,
-      time: timeVal,
-      menu: menuSummaryText.trim(), // 商品名＋数量だけ送信
-      total: totalPrice,
-      totalWithTax: totalPriceWithTax,
-      note,
-      userId: liffUserId
-    };
+const profile = await liff.getProfile();
+const liffUserId = profile.userId || "";
+console.log("取得したuserId:", liffUserId);
+
+const payload = {
+  name,
+  tel,
+  store,
+  date: dateVal,
+  time: timeVal,
+  menu: menuSummaryText.trim(),
+  total: totalPrice,
+  totalWithTax: totalPriceWithTax,
+  note,
+  userId: liffUserId  // ここで必ず取得した userId を送る
+};
 
      const res = await fetch(GAS_URL, {
       method: "POST",
