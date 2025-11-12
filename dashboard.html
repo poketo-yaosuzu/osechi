@@ -74,13 +74,13 @@ tr:hover { background: #fafafa; }
   <table id="reservationTable">
     <thead>
       <tr>
-        <th data-sort="No">No</th>
-        <th data-sort="日時">日時</th>
-        <th data-sort="お名前">お名前</th>
-        <th data-sort="店舗">店舗</th>
+        <th data-sort="予約番号">予約番号</th>
+        <th data-sort="登録日時">登録日時</th>
+        <th data-sort="名前">名前</th>
+        <th data-sort="受取店舗">店舗</th>
         <th data-sort="受取日">受取日</th>
         <th data-sort="受取時間">受取時間</th>
-        <th data-sort="ご注文内容">ご注文内容</th>
+        <th data-sort="注文内容">注文内容</th>
         <th data-sort="備考">備考</th>
       </tr>
     </thead>
@@ -123,7 +123,7 @@ async function fetchData() {
 function renderTable() {
   let filtered = reservationData.slice(); // コピーして操作
   if (currentStore !== "全店") {
-    filtered = filtered.filter(r => r["店舗"] === currentStore);
+    filtered = filtered.filter(r => r["受取店舗"] === currentStore);
   }
 
   const tbody = document.querySelector("#reservationTable tbody");
@@ -138,15 +138,15 @@ function renderTable() {
 
 filtered.forEach(r => {
   const tr = document.createElement("tr");
-  const dateStr = r["日時"] ? new Date(r["日時"]) : null;
+  const dateStr = r["登録日時"] ? new Date(r["登録日時"]) : null;
   tr.innerHTML = `
-    <td>${r["No"] || ""}</td>
+    <td>${r["予約番号"] || ""}</td>
     <td>${dateStr ? dateStr.toLocaleString() : ""}</td>
-    <td>${r["お名前"] || ""}</td>
-    <td>${r["店舗"] || ""}</td>
+    <td>${r["名前"] || ""}</td>
+    <td>${r["受取店舗"] || ""}</td>
     <td>${r["受取日"] || ""}</td>
     <td>${r["受取時間"] || ""}</td>
-    <td>${r["ご注文内容"]?.replace(/\n/g,"<br>") || ""}</td>
+    <td>${r["注文内容"]?.replace(/\n/g,"<br>") || ""}</td>
     <td>${r["備考"] || ""}</td>
   `;
   tbody.appendChild(tr);
@@ -177,7 +177,7 @@ document.querySelectorAll("#reservationTable th").forEach(th => {
       let va = a[key] || "";
       let vb = b[key] || "";
 
-      if(key === "日時") {
+      if(key === "登録日時") {
         va = new Date(va);
         vb = new Date(vb);
         return currentSort.asc ? va - vb : vb - va;
