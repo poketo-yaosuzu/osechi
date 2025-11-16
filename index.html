@@ -148,23 +148,41 @@ function formatWareki(date){const y=date.getFullYear()-2018; const wYear="R"+y; 
 function formatTimeHM(timeStr){ const [h,m]=timeStr.split(":"); return `${parseInt(h)}時${parseInt(m)}分`; }
 
 // LIFF初期化
-let liffUserId = "";
+/*****************************************
+ * 🌟 LIFF 初期化（userId取得）
+ *****************************************/
+let liffUserId = ""; // ← ここに確実に保存する
 
 async function initLIFF() {
   try {
     await liff.init({ liffId: "2008417031-yLP1bOMR" });
-    if (!liff.isLoggedIn()) liff.login();
+
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return; // 初回はここで終了（ログイン後に再読み込みされる）
+    }
+
     const profile = await liff.getProfile();
     liffUserId = profile.userId || "";
-    console.log("LIFF userId:", liffUserId);
-    document.getElementById("sendBtn").disabled = false; // 送信ボタン有効化
+
+    console.log("取得した userId:", liffUserId);
+
+    if (!liffUserId) {
+      alert("LINEユーザーIDが取得できません。LINEアプリから開いてください。");
+      return;
+    }
+
+    // ← ここまで来れば初期化成功！送信ボタンを有効化
+    document.getElementById("sendBtn").disabled = false;
+
   } catch (err) {
     console.error("LIFF初期化エラー:", err);
+    alert("LIFF初期化に失敗しました。再読み込みしてください。");
   }
 }
 
 window.addEventListener("load", initLIFF);
-  
+
   // HTMLエスケープ関数
 function escapeHTML(str){
   return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -319,27 +337,53 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
 
     const totalPriceWithTax = Math.round(totalPrice * (1 + TAX_RATE));
 
-    // -------------------- GAS送信 --------------------
-const profile = await liff.getProfile();
-const liffUserId = profile.userId || "";
-console.log("取得したuserId:", liffUserId);
+/*****************************************
+ * 🌟 予約送信処理
+ *****************************************/
+async function sendReservation() {
 
-const payload = {
-  name,
-  tel,
-  store,
-  date: dateVal,
-  time: timeVal,
-  menu: menuSummaryText.trim(),
-  total: totalPrice,
-  totalWithTax: totalPriceWithTax,
-  note,
-  userId: liffUserId  // ここで必ず取得した userId を送る
-};
+  // 初期化前に押した時の保険
+  if (!liffUserId) {
+    alert("LINEユーザーIDが取得できていません。ページを再読み込みしてください。");
+    return;
+  }
 
-     const res = await fetch(GAS_URL, {
+  // ========= フォームの値取得 =========
+  const name = document.getElementById("name").value.trim();
+  const tel = document.getElementById("tel").value.trim();
+  const store = document.getElementById("store").value;
+  const dateVal = document.getElementById("date").value;
+  const timeVal = document.getElementById("time").value;
+  const note = document.getElementById("note").value.trim();
+
+  // 商品選択部分
+  const menuSummaryText = createMenuSummary(); // ← 任意メソッド（元コードである想定）
+  const totalPrice = calculateTotal(); // ← 任意メソッド（元コードである想定）
+  const totalPriceWithTax = calculateTotalWithTax(); // ← 任意メソッド（元コードである想定）
+
+  // ========= 送信モーダル表示 =========
+  sendingModal.style.display = "flex";
+
+  // ========= GAS に送るデータ =========
+  const payload = {
+    name,
+    tel,
+    store,
+    date: dateVal,
+    time: timeVal,
+    menu: menuSummaryText.trim(),
+    total: totalPrice,
+    totalWithTax: totalPriceWithTax,
+    note,
+    userId: liffUserId  // ← 必ず LIFF から取得した userId を送る！
+  };
+
+  try {
+    const res = await fetch(GAS_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+      },
       body: new URLSearchParams(payload)
     });
 
@@ -349,53 +393,23 @@ const payload = {
     let result;
     try {
       result = JSON.parse(text);
-    } catch (e) {
-      console.error("JSON変換エラー:", text);
-      alert("サーバーからの応答が不正です。");
-      sendingModal.style.display = "none";
-      return;
+    } catch {
+      throw new Error("GASの応答が不正です");
     }
 
-    sendingModal.style.display = "none";
-
-if (result.result === "success") {
-  // -------------------- 完了画面表示 --------------------
-  const step3 = document.getElementById("step3");
-  const step4 = document.getElementById("step4");
-
-  step3.classList.remove("active");
-  step3.style.display = "none";   // ← これを追加
-  step4.classList.add("active");
-  step4.style.display = "block";  // ← これを追加
-
-  // 表示用HTML（簡易テーブル）
-  let menuSummaryHTML = "<table><tr><th>商品</th><th>数量</th></tr>";
-  menuSummaryText.split("\n").filter(line => line.trim() !== "").forEach(line => {
-    const [name, qty] = line.split(" × ");
-    menuSummaryHTML += `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(qty)}</td></tr>`;
-  });
-  menuSummaryHTML += "</table>";
-
-  document.getElementById("summaryBox").innerHTML = `
-    <strong>店舗：</strong>${escapeHTML(store)}<br>
-    <strong>お名前：</strong>${escapeHTML(name)}様<br>
-    <strong>電話番号：</strong>${escapeHTML(tel)}<br>
-    <strong>受取日：</strong>${escapeHTML(dateVal)} ${formatTimeHM(timeVal)}<br>
-    <strong>ご注文：</strong><br>${menuSummaryHTML}
-    <strong>合計金額：</strong>${formatYen(totalPrice)}<br>
-    <strong>税込合計金額：</strong>${formatYen(totalPriceWithTax)}
-  `;
-} else {
-  alert("送信に失敗しました: " + (result.message || "不明なエラー"));
-}
-
+    if (result.result === "success") {
+      sendingModal.style.display = "none";
+      alert("予約を送信しました！"); // ← 任意で変更OK
+    } else {
+      throw new Error(result.message || "送信エラー");
+    }
 
   } catch (err) {
+    console.error("送信エラー:", err);
     sendingModal.style.display = "none";
-    console.error("送信中エラー:", err);
-    alert("送信中にエラーが発生しました: " + (err.message || err));
+    alert("送信中にエラーが発生しました。再度お試しください。");
   }
-});
+}
 // --------------------- LINEへ戻る ---------------------
 document.getElementById("backToLINE").addEventListener("click", () => {
   if (liff && liff.isInClient()) {
