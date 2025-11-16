@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>おせち予約フォーム</title>
 <style>
-/* （省略せず元のスタイルをそのまま） */
 body{font-family:sans-serif;margin:0;padding:0;background:#f5f5f5;color:#333;}
 .container{max-width:480px;margin:auto;padding:10px;}
 h2{text-align:center;margin:10px 0;}
@@ -42,34 +41,13 @@ button:hover{opacity:0.9;}
 .summary{text-align:left;background:#fff;border-radius:12px;padding:12px;margin-bottom:20px;line-height:1.6em;font-size:0.9em;box-shadow: inset 0 1px 4px rgba(0,0,0,0.05);}
 #backToLINE{background:#00c300;color:#fff;font-weight:bold;border-radius:10px;padding:12px 20px;border:none;cursor:pointer;font-size:1em;}
 #backToLINE:hover{opacity:0.9;}
-  #summaryBox table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 8px;
-  font-size: 0.9em;
-}
-
-#summaryBox th, #summaryBox td {
-  border: 1px solid #ddd;
-  padding: 6px 8px;
-  text-align: left;
-}
-
-#summaryBox th {
-  background: #f1f1f1;
-}
-
-#summaryBox td {
-  vertical-align: middle;
-}
-
-@media screen and (max-width: 480px) {
-  #summaryBox table, #summaryBox th, #summaryBox td {
-    font-size: 0.85em;
-  }
-  #summaryBox th, #summaryBox td {
-    padding: 4px 6px;
-  }
+#summaryBox table {width:100%;border-collapse: collapse;margin-top: 8px;font-size: 0.9em;}
+#summaryBox th, #summaryBox td {border:1px solid #ddd;padding:6px 8px;text-align:left;}
+#summaryBox th {background:#f1f1f1;}
+#summaryBox td {vertical-align: middle;}
+@media screen and (max-width:480px) {
+  #summaryBox table,#summaryBox th,#summaryBox td {font-size:0.85em;}
+  #summaryBox th,#summaryBox td {padding:4px 6px;}
 }
 </style>
 </head>
@@ -112,6 +90,7 @@ button:hover{opacity:0.9;}
     <h2>🎉 ご予約ありがとうございます！</h2>
     <p>以下の内容で受付いたしました。</p>
     <div class="summary" id="summaryBox"></div>
+    <p>変更などあれば、予約店舗まで直接連絡をお願いします。</p>
     <button id="backToLINE">LINEへ戻る</button>
   </div>
 </div>
@@ -132,7 +111,6 @@ button:hover{opacity:0.9;}
 
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <script>
-  
 const LIFF_ID = "2008417031-yLP1bOMR"; 
 const GAS_URL = "https://script.google.com/macros/s/AKfycbwvcHKWuXTZXDssjwskN43tsGivXt3TR8miGH1BID5hOg2MxHZwv8tYT0--QWVNpib8MQ/exec"; 
 let selectedStore = "";
@@ -147,12 +125,18 @@ function formatWareki(date){const y=date.getFullYear()-2018; const wYear="R"+y; 
 function formatTimeHM(timeStr){ const [h,m]=timeStr.split(":"); return `${parseInt(h)}時${parseInt(m)}分`; }
 
 // LIFF初期化
-
-  // HTMLエスケープ関数
-function escapeHTML(str){
-  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+let liffUserId = "";
+async function initLIFF() {
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    const profile = await liff.getProfile();
+    liffUserId = profile.userId || "";
+    if (!liffUserId) { alert("LINEユーザーIDが取得できません。LINEアプリから開いてください。"); return; }
+  } catch (err) { console.error("LIFF初期化エラー:", err); alert("LIFF初期化に失敗しました。再読み込みしてください。"); }
 }
-  
+window.addEventListener("load", initLIFF);
+
 // --------------------- ステップ1 ---------------------
 document.querySelectorAll(".store-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -162,6 +146,7 @@ document.querySelectorAll(".store-btn").forEach(btn => {
     renderMenuStep2();
   });
 });
+
 // --------------------- ステップ2 ---------------------
 function renderMenuStep2(){
   document.getElementById("menuTitle").textContent = selectedStore+"でご予約";
@@ -211,19 +196,15 @@ document.getElementById("backToStep1").addEventListener("click",()=>{
   document.getElementById("step1").classList.add("active");
 });
 
-// ステップ2→3に進む
 document.getElementById("toStep3").addEventListener("click",()=>{
   const totalQty = Array.from(document.querySelectorAll("#step2 .menu-card .qty-display"))
                         .reduce((sum, el) => sum + parseInt(el.textContent), 0);
-  if(totalQty === 0){
-    alert("1つ以上選んでください");
-    return;
-  }
+  if(totalQty === 0){ alert("1つ以上選んでください"); return; }
   document.getElementById("step2").classList.remove("active");
   document.getElementById("step3").classList.add("active");
   renderStep3();
 });
-  
+
 // --------------------- ステップ3 ---------------------
 function renderStep3(){
   const now=new Date();
@@ -249,13 +230,11 @@ document.getElementById("backToStep2").addEventListener("click",()=>{
 });
 
 // --------------------- モーダル閉じる ---------------------
-document.getElementById("modalClose").addEventListener("click",()=>{
-  document.getElementById("imageModal").style.display="none";
-});
+document.getElementById("modalClose").addEventListener("click",()=>{ document.getElementById("imageModal").style.display="none"; });
 
 // --------------------- 確定ボタン ---------------------
 document.getElementById("confirmReservation").addEventListener("click", async () => {
-
+  if (!liffUserId) { alert("LINEログインが完了していません。"); return; }
   const sendingModal = document.getElementById("sendingModal");
   sendingModal.style.display = "flex";
 
@@ -267,14 +246,9 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
     const dateVal = document.getElementById("receiveDate").value;
     const timeVal = document.getElementById("receiveTime").value;
 
-    if (!name || !tel || !dateVal || !timeVal) {
-      alert("お名前、電話番号、受取日、受取時間は必須です");
-      sendingModal.style.display = "none";
-      return;
-    }
+    if (!name || !tel || !dateVal || !timeVal) { alert("お名前、電話番号、受取日、受取時間は必須です"); sendingModal.style.display = "none"; return; }
 
-    // -------------------- メニュー集計 --------------------
-    let menuSummaryText = ""; // 商品名＋数量のみ
+    let menuSummaryText = "";
     let totalPrice = 0;
     const now = new Date();
     const earlyDiscountEnd = new Date(now.getFullYear(), 10, 30);
@@ -285,97 +259,36 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
       if (qty > 0) {
         const menu = menus[index];
         const price = (menu.discount && now <= earlyDiscountEnd) ? Math.round(menu.price * 0.95) : menu.price;
-        const subtotal = price * qty;
-        totalPrice += subtotal;
+        totalPrice += price * qty;
         menuSummaryText += `${menu.name} × ${qty}\n`;
       }
     });
 
-    if (!menuSummaryText) {
-      alert("1つ以上商品を選んでください");
-      sendingModal.style.display = "none";
-      return;
-    }
+    if (!menuSummaryText) { alert("1つ以上商品を選んでください"); sendingModal.style.display = "none"; return; }
 
     const totalPriceWithTax = Math.round(totalPrice * (1 + TAX_RATE));
 
-    // -------------------- GAS送信 --------------------
-    const payload = {
-      name,
-      tel,
-      store,
-      date: dateVal,
-      time: timeVal,
-      menu: menuSummaryText.trim(), // 商品名＋数量だけ送信
-      total: totalPrice,
-      totalWithTax: totalPriceWithTax,
-      note,
-      //userId: liffUserId 　　テスト
-    };
+    const payload = { name, tel, store, date: dateVal, time: timeVal, menu: menuSummaryText.trim(), total: totalPrice, totalWithTax: totalPriceWithTax, note, userId: liffUserId };
 
-     const res = await fetch(GAS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
-      body: new URLSearchParams(payload)
-    });
-
+    const res = await fetch(GAS_URL, { method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"}, body: new URLSearchParams(payload) });
     const text = await res.text();
-    console.log("GAS応答:", text);
+    let result; try { result = JSON.parse(text); } catch { throw new Error("GASの応答が不正です"); }
 
-    let result;
-    try {
-      result = JSON.parse(text);
-    } catch (e) {
-      console.error("JSON変換エラー:", text);
-      alert("サーバーからの応答が不正です。");
-      sendingModal.style.display = "none";
-      return;
-    }
+    if (result.result==="success") {
+      sendingModal.style.display="none";
+      document.getElementById("step3").classList.remove("active");
+      document.getElementById("step4").classList.add("active");
+      document.getElementById("summaryBox").textContent = menuSummaryText;
+    } else { throw new Error(result.message || "送信エラー"); }
 
-sendingModal.style.display = "none";
-
-if (result.result === "success") {
-  // -------------------- 完了画面表示 --------------------
-  const step3 = document.getElementById("step3");
-  const step4 = document.getElementById("step4");
-
-  step3.classList.remove("active");
-  step3.style.display = "none";   // ← これを追加
-  step4.classList.add("active");
-  step4.style.display = "block";  // ← これを追加
-
-  // 表示用HTML（簡易テーブル）
-  let menuSummaryHTML = "<table><tr><th>商品</th><th>数量</th></tr>";
-  menuSummaryText.split("\n").filter(line => line.trim() !== "").forEach(line => {
-    const [name, qty] = line.split(" × ");
-    menuSummaryHTML += `<tr><td>${escapeHTML(name)}</td><td>${escapeHTML(qty)}</td></tr>`;
-  });
-  menuSummaryHTML += "</table>";
-
-  document.getElementById("summaryBox").innerHTML = `
-    <strong>店舗：</strong>${escapeHTML(store)}<br>
-    <strong>お名前：</strong>${escapeHTML(name)}様<br>
-    <strong>電話番号：</strong>${escapeHTML(tel)}<br>
-    <strong>受取日：</strong>${escapeHTML(dateVal)} ${formatTimeHM(timeVal)}<br>
-    <strong>ご注文：</strong><br>${menuSummaryHTML}
-    <strong>合計金額：</strong>${formatYen(totalPrice)}<br>
-    <strong>税込合計金額：</strong>${formatYen(totalPriceWithTax)}
-  `;
-} else {
-  alert("送信に失敗しました: " + (result.message || "不明なエラー"));
-}
-
-  } catch (err) {
-    sendingModal.style.display = "none";
-    console.error("送信中エラー:", err);
-    alert("送信中にエラーが発生しました: " + (err.message || err));
-  }
+  } catch (err) { console.error("送信エラー:", err); sendingModal.style.display = "none"; alert("送信中にエラーが発生しました。再度お試しください。"); }
 });
+
 // --------------------- LINEへ戻る ---------------------
-document.getElementById("backToLINE").addEventListener("click",()=>{
-  if(window.liff && liff.isInClient && liff.isInClient()){ liff.closeWindow(); }else{ location.reload(); }
+document.getElementById("backToLINE").addEventListener("click", () => {
+  if (liff && liff.isInClient()) { liff.closeWindow(); } 
+  else { alert("LINEアプリからアクセスしてください"); }
 });
-
 </script>
 </body>
 </html>
