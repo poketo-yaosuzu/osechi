@@ -137,6 +137,9 @@ async function initLIFF() {
 }
 window.addEventListener("load", initLIFF);
 
+// HTMLエスケープ関数
+function escapeHTML(str){ return str.replace(/[&<>\"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m])); }
+  
 // --------------------- ステップ1 ---------------------
 document.querySelectorAll(".store-btn").forEach(btn => {
   btn.addEventListener("click", () => {
@@ -146,19 +149,20 @@ document.querySelectorAll(".store-btn").forEach(btn => {
     renderMenuStep2();
   });
 });
-
 // --------------------- ステップ2 ---------------------
-function renderMenuStep2(){
-  document.getElementById("menuTitle").textContent = selectedStore+"でご予約";
-  const menuList=document.getElementById("menuList");
-  menuList.innerHTML="";
-  menus.forEach((menu,index)=>{
-    const now=new Date();
-    const earlyDiscountEnd=new Date(now.getFullYear(),10,30);
-    const discountedPrice=(menu.discount && now<=earlyDiscountEnd)? Math.round(menu.price*0.95):menu.price;
-    const card=document.createElement("div");
-    card.className="menu-card";
-    card.innerHTML=`
+function renderMenuStep2() {
+  document.getElementById("menuTitle").textContent = selectedStore + "でご予約";
+  const menuList = document.getElementById("menuList");
+  menuList.innerHTML = "";
+
+  menus.forEach((menu, index) => {
+    const now = new Date();
+    const earlyDiscountEnd = new Date(now.getFullYear(), 10, 30);
+    const discountedPrice = (menu.discount && now <= earlyDiscountEnd) ? Math.round(menu.price * 0.95) : menu.price;
+
+    const card = document.createElement("div");
+    card.className = "menu-card";
+    card.innerHTML = `
       <img src="${menu.img}" alt="${menu.name}">
       <h3>${menu.name}</h3>
       <p>${menu.description}</p>
@@ -170,40 +174,43 @@ function renderMenuStep2(){
         <div class="qty-display">0</div>
         <div class="qty-btn" data-action="plus">＋</div>
       </div>
-      ${menu.discount && now<=earlyDiscountEnd?'<div class="badge">11月30日(日)まで早割5%引き中</div>':''}
+      ${menu.discount && now <= earlyDiscountEnd ? '<div class="badge">11月30日(日)まで早割5%引き中</div>' : ''}
     `;
     menuList.appendChild(card);
 
-    card.querySelectorAll(".qty-btn").forEach(qbtn=>{
-      qbtn.addEventListener("click",()=>{
-        const display=card.querySelector(".qty-display");
-        let val=parseInt(display.textContent);
-        val = qbtn.dataset.action==="plus"?val+1:Math.max(0,val-1);
-        display.textContent=val;
+    // 数量ボタンイベント
+    card.querySelectorAll(".qty-btn").forEach(qbtn => {
+      qbtn.addEventListener("click", () => {
+        const display = card.querySelector(".qty-display");
+        let val = parseInt(display.textContent);
+        val = qbtn.dataset.action === "plus" ? val + 1 : Math.max(0, val - 1);
+        display.textContent = val;
       });
     });
 
-    card.querySelector("img").addEventListener("click",()=>{
-      document.getElementById("modalImg").src=menu.img;
-      document.getElementById("modalCaption").textContent=menu.name+"\n"+menu.description;
-      document.getElementById("imageModal").style.display="flex";
+    // 画像クリックでモーダル
+    card.querySelector("img").addEventListener("click", () => {
+      document.getElementById("modalImg").src = menu.img;
+      document.getElementById("modalCaption").textContent = `${menu.name}\n${menu.description}`;
+      document.getElementById("imageModal").style.display = "flex";
     });
+  }); // ← これが menus.forEach の閉じ
+
+  // 戻る・次へボタンイベントは renderMenuStep2 の外で OK
+  document.getElementById("backToStep1").addEventListener("click", () => {
+    document.getElementById("step2").classList.remove("active");
+    document.getElementById("step1").classList.add("active");
   });
-}
 
-document.getElementById("backToStep1").addEventListener("click",()=>{
-  document.getElementById("step2").classList.remove("active");
-  document.getElementById("step1").classList.add("active");
-});
-
-document.getElementById("toStep3").addEventListener("click",()=>{
-  const totalQty = Array.from(document.querySelectorAll("#step2 .menu-card .qty-display"))
-                        .reduce((sum, el) => sum + parseInt(el.textContent), 0);
-  if(totalQty === 0){ alert("1つ以上選んでください"); return; }
-  document.getElementById("step2").classList.remove("active");
-  document.getElementById("step3").classList.add("active");
-  renderStep3();
-});
+  document.getElementById("toStep3").addEventListener("click", () => {
+    const totalQty = Array.from(document.querySelectorAll("#step2 .menu-card .qty-display"))
+                          .reduce((sum, el) => sum + parseInt(el.textContent), 0);
+    if (totalQty === 0) { alert("1つ以上選んでください"); return; }
+    document.getElementById("step2").classList.remove("active");
+    document.getElementById("step3").classList.add("active");
+    renderStep3();
+  });
+} // ← これが renderMenuStep2 の閉じ
 
 // --------------------- ステップ3 ---------------------
 function renderStep3(){
@@ -260,7 +267,7 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
         const menu = menus[index];
         const price = (menu.discount && now <= earlyDiscountEnd) ? Math.round(menu.price * 0.95) : menu.price;
         totalPrice += price * qty;
-        menuSummaryText += `${menu.name} × ${qty}\n`;
+       menuSummaryText += `${menu.name} × ${qty}\n`
       }
     });
 
@@ -285,10 +292,7 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
 });
 
 // --------------------- LINEへ戻る ---------------------
-document.getElementById("backToLINE").addEventListener("click", () => {
-  if (liff && liff.isInClient()) { liff.closeWindow(); } 
-  else { alert("LINEアプリからアクセスしてください"); }
-});
+document.getElementById("backToLINE").addEventListener("click", () => { if (liff && liff.isInClient()) { liff.closeWindow(); } else { alert("LINEアプリからアクセスしてください"); } });
 </script>
 </body>
 </html>
