@@ -128,33 +128,32 @@ function formatTimeHM(timeStr){ const [h,m]=timeStr.split(":"); return `${parseI
 let liffUserId = "";
 let liffReady = false;
 
+if (!liff.isInClient()) {
+  alert("LINEアプリから開いてください。ブラウザではユーザーIDが取得できません。");
+}
+
+const confirmBtn = document.getElementById("confirmReservation");
+confirmBtn.disabled = true; // 初期状態で無効
+
 async function initLIFF() {
   try {
     await liff.init({ liffId: LIFF_ID });
 
     if (!liff.isLoggedIn()) {
-      liff.login();
+      liff.login(); // LINEログイン画面へ
       return;
     }
 
     const profile = await liff.getProfile();
     liffUserId = profile.userId;
-    liffReady = true; // ✅ 初期化完了フラグ
+    confirmBtn.disabled = false; // ✅ LIFF初期化完了で有効化
     console.log("LIFF User ID:", liffUserId);
-
-    if (!liffUserId) alert("LINEユーザーIDが取得できません。LINEアプリから開いてください。");
 
   } catch (err) {
     console.error("LIFF初期化エラー:", err);
     alert("LIFF初期化に失敗しました。再読み込みしてください。");
   }
 }
-
-document.getElementById("confirmReservation").addEventListener("click", async () => {
-  if (!liffReady) { 
-    alert("LINEログイン処理が完了していません。少し待ってから再度押してください。"); 
-    return; 
-  }
 
 window.addEventListener("load", initLIFF);
 });
