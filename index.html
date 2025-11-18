@@ -34,7 +34,7 @@ button:hover{opacity:0.9;}
 #modalImg{max-width:90vw;max-height:80vh;border-radius:8px;}
 #modalCaption{color:#fff;text-align:center;margin-top:5px;}
 #modalClose{position:absolute;top:-10px;right:-10px;background:#fff;color:#000;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;cursor:pointer;font-weight:bold;}
-#step4{display:none;text-align:center;}
+#step4{text-align:center;}
 .thanks-card{background:#eaffea;border-radius:16px;box-shadow:0 4px 8px rgba(0,0,0,0.1);padding:25px;margin:40px auto;max-width:420px;}
 .thanks-card h2{color:#00c300;margin-bottom:10px;}
 .thanks-card p{font-size:0.95em;margin-bottom:15px;}
@@ -285,7 +285,8 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
       sendingModal.style.display="none";
       document.getElementById("step3").classList.remove("active");
       document.getElementById("step4").classList.add("active");
-      document.getElementById("summaryBox").textContent = menuSummaryText;
+      document.getElementById("summaryBox").innerHTML = 
+      menuSummaryText.replace(/\n/g, "<br>");
     } else { throw new Error(result.message || "送信エラー"); }
 
   } catch (err) { console.error("送信エラー:", err); sendingModal.style.display = "none"; alert("送信中にエラーが発生しました。再度お試しください。"); }
