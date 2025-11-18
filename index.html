@@ -124,17 +124,34 @@ function formatYen(price){ return `¥${price.toLocaleString()}`; }
 function formatWareki(date){const y=date.getFullYear()-2018; const wYear="R"+y; const month=date.getMonth()+1; const day=date.getDate(); const weekdays=["日","月","火","水","木","金","土"]; return `${wYear}年${month}月${day}日（${weekdays[date.getDay()]}）`; }
 function formatTimeHM(timeStr){ const [h,m]=timeStr.split(":"); return `${parseInt(h)}時${parseInt(m)}分`; }
 
-// LIFF初期化
+// LIFF初期化（テスト用に固定IDを使用）
 let liffUserId = "";
+
 async function initLIFF() {
   try {
     await liff.init({ liffId: LIFF_ID });
-    if (!liff.isLoggedIn()) { liff.login(); return; }
+
+    if (!liff.isLoggedIn()) {
+      // ログイン後にこのページに戻るので return で処理を止める
+      liff.login();
+      return;
+    }
+
+    // ログイン済みなら User ID を取得
     const profile = await liff.getProfile();
-    liffUserId = profile.userId || "";
-    if (!liffUserId) { alert("LINEユーザーIDが取得できません。LINEアプリから開いてください。"); return; }
-  } catch (err) { console.error("LIFF初期化エラー:", err); alert("LIFF初期化に失敗しました。再読み込みしてください。"); }
+    liffUserId = profile.userId;
+    console.log("LIFF User ID:", liffUserId);
+
+    if (!liffUserId) {
+      alert("LINEユーザーIDが取得できません。LINEアプリから開いてください。");
+    }
+
+  } catch (err) {
+    console.error("LIFF初期化エラー:", err);
+    alert("LIFF初期化に失敗しました。再読み込みしてください。");
+  }
 }
+
 window.addEventListener("load", initLIFF);
 
 // HTMLエスケープ関数
@@ -279,9 +296,11 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
 
     const res = await fetch(GAS_URL, { method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"}, body: new URLSearchParams(payload) });
     const text = await res.text();
+    console.log("GAS 生レスポンス:", text);
     let result; try { result = JSON.parse(text); } catch { throw new Error("GASの応答が不正です"); }
 
     if (result.result==="success") {
+      console.log("📌 Step4 に移行する処理が呼ばれた！");
       sendingModal.style.display="none";
       document.getElementById("step3").classList.remove("active");
       document.getElementById("step4").classList.add("active");
