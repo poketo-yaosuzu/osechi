@@ -137,21 +137,35 @@ async function initLIFF() {
     await liff.init({ liffId: LIFF_ID });
 
     if (!liff.isLoggedIn()) {
-      liff.login(); // LINEログイン画面へ
+      liff.login();
       return;
     }
 
+    // すでに保存済みならそれを復元
+    const cachedId = sessionStorage.getItem("liffUserId");
+    if (cachedId) {
+      liffUserId = cachedId;
+      confirmBtn.disabled = false;
+      console.log("🔁 キャッシュから復元した userId:", liffUserId);
+      return;
+    }
+
+    // 初回のみ LIFF から取得
     const profile = await liff.getProfile();
-    const userId = profile.userId;
     liffUserId = profile.userId;
-    confirmBtn.disabled = false; // ✅ LIFF初期化完了で有効化
-    console.log("LIFF User ID:", liffUserId);
+
+    // セッション保存
+    sessionStorage.setItem("liffUserId", liffUserId);
+
+    confirmBtn.disabled = false;
+    console.log("🆕 LIFF から取得した userId:", liffUserId);
 
   } catch (err) {
     console.error("LIFF初期化エラー:", err);
     alert("LIFF初期化に失敗しました。再読み込みしてください。");
   }
 }
+
 
 window.addEventListener("load", initLIFF);
   
@@ -298,7 +312,7 @@ document.getElementById("confirmReservation").addEventListener("click", async ()
     const res = await fetch(GAS_URL, { method:"POST", headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"}, body: new URLSearchParams(payload) });
     const text = await res.text();
     console.log("GAS 生レスポンス:", text);
-    let result; try { result = JSON.parse(text); } catch { throw new Error("GASの応答が不正です"); }
+        let result; try { result = JSON.parse(text); } catch { throw new Error("GASの応答が不正です"); }
 
     if (result.result==="success") {
       console.log("📌 Step4 に移行する処理が呼ばれた！");
