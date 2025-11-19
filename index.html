@@ -128,13 +128,10 @@ function formatTimeHM(timeStr){ const [h,m]=timeStr.split(":"); return `${parseI
 let liffUserId = "";
 let liffReady = false;
 
-if (!liff.isInClient()) {
-  alert("LINEアプリから開いてください。ブラウザではユーザーIDが取得できません。");
-}
-
 const confirmBtn = document.getElementById("confirmReservation");
 confirmBtn.disabled = true; // 初期状態で無効
 
+  
 async function initLIFF() {
   try {
     await liff.init({ liffId: LIFF_ID });
@@ -145,6 +142,7 @@ async function initLIFF() {
     }
 
     const profile = await liff.getProfile();
+    const userId = profile.userId;
     liffUserId = profile.userId;
     confirmBtn.disabled = false; // ✅ LIFF初期化完了で有効化
     console.log("LIFF User ID:", liffUserId);
@@ -319,4 +317,3 @@ document.getElementById("backToLINE").addEventListener("click", () => { if (liff
 </script>
 </body>
 </html>
-
