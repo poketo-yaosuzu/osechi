@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <title>おせちご予約フォーム（LINE風・ギャラリー式）</title>
+  <title>ヤオスズおせちご予約フォーム</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -51,6 +51,38 @@
     .submit-btn{background:var(--line-green);color:#fff;padding:12px;border-radius:10px;border:none;width:100%;font-size:16px;cursor:pointer;margin-top:10px}
     footer{text-align:center;color:var(--muted);font-size:13px;margin-top:12px;}
     .note{font-size:13px;color:var(--muted);margin-top:6px}
+    .modal {
+  position: fixed;
+  top:0; left:0; right:0; bottom:0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items:center;
+  justify-content:center;
+  z-index: 9999;
+}
+.modal.hidden { display: none; }
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  max-width: 85%;
+  text-align: center;
+}
+
+.loader {
+  margin: 10px auto;
+  border: 4px solid #eee;
+  border-top: 4px solid #2196f3;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  100% { transform: rotate(360deg); }
+}
   </style>
 </head>
 <body>
@@ -97,6 +129,32 @@
     <textarea id="memo" rows="3" placeholder="ご要望などがあれば記入してください"></textarea>
 
     <button type="submit" class="submit-btn">送信する</button>
+    
+    <!-- 送信確認モーダル -->
+<div id="confirmModal" class="modal hidden">
+  <div class="modal-content">
+    <p>この内容で送信しますか？</p>
+    <button id="confirmYes" class="btn-primary">送信する</button>
+    <button id="confirmNo" class="btn-secondary">キャンセル</button>
+  </div>
+</div>
+
+<!-- 送信中モーダル -->
+<div id="loadingModal" class="modal hidden">
+  <div class="modal-content">
+    <p>送信中です… 少しお待ちください。</p>
+    <div class="loader"></div>
+  </div>
+</div>
+
+<!-- 完了モーダル -->
+<div id="doneModal" class="modal hidden">
+  <div class="modal-content">
+    <p>送信が完了しました！</p>
+    <button id="closeDone" class="btn-primary">OK</button>
+  </div>
+</div>
+
   </form>
 
   <footer>©️ スーパーヤオスズ</footer>
@@ -135,7 +193,7 @@ function renderPickupTimes(){
   }
 }
 
-// ギャラリー
+// ギャラリー描画
 function formatLabelDate(isoDate){
   const d = new Date(isoDate+"T00:00:00");
   const jpDays = ["日","月","火","水","木","金","土"];
@@ -151,9 +209,8 @@ function isEarlyDiscountActive(untilIso){
 
 function renderGallery(){
   gallery.innerHTML="";
-  PRODUCTS.forEach((p,idx)=>{
-    const card = document.createElement("div");
-    card.className="product-card";
+  PRODUCTS.forEach((p)=>{
+    const card = document.createElement("div"); card.className="product-card";
     const media=document.createElement("div"); media.className="product-media";
     const img=document.createElement("img"); img.src=p.img; img.alt=p.name;
     img.addEventListener('click',(e)=>{ e.stopPropagation(); Swal.fire({imageUrl:p.img,imageAlt:p.name,showCloseButton:true,showConfirmButton:false}); });
@@ -195,9 +252,7 @@ function renderCart(){
     div.innerHTML=`${c.name} ×${c.qty} <span class="cart-remove" data-name="${c.name}">削除</span> <span>${c.price.toLocaleString()}円</span>`;
     cartEl.appendChild(div);
   });
-  cartEl.querySelectorAll(".cart-remove").forEach(btn=>{
-    btn.addEventListener("click",()=>removeFromCart(btn.dataset.name));
-  });
+  cartEl.querySelectorAll(".cart-remove").forEach(btn=>{ btn.addEventListener("click",()=>removeFromCart(btn.dataset.name)); });
   updateTotal();
 }
 function updateTotal(){
@@ -214,7 +269,15 @@ if(PRODUCTS.some(p=>isEarlyDiscountActive(p.discountUntil))){
 }
 
 // LIFF初期化
-(async()=>{try{if(!LIFF_ID||LIFF_ID==="YOUR_LIFF_ID")return;await liff.init({liffId:LIFF_ID});if(!liff.isLoggedIn())liff.login(); const profile=await liff.getProfile();userId=profile.userId||"";}catch(err){console.warn("LIFF init error:",err);}})();
+(async()=>{
+  try{
+    if(!LIFF_ID||LIFF_ID==="YOUR_LIFF_ID") return;
+    await liff.init({liffId:LIFF_ID});
+    if(!liff.isLoggedIn()) liff.login();
+    const profile=await liff.getProfile();
+    userId=profile.userId||"";
+  }catch(err){ console.warn("LIFF init error:",err); }
+})();
 
 // 送信処理
 document.getElementById("reservationForm").addEventListener("submit", async(ev)=>{
@@ -229,19 +292,56 @@ document.getElementById("reservationForm").addEventListener("submit", async(ev)=
   const productsText = cart.map(c=>`${c.name} ×${c.qty}（単価 ${c.price.toLocaleString()}円）`).join("\n");
   const total = cart.reduce((s,c)=>s+c.price*c.qty,0);
 
-  Swal.fire({icon:'question',title:'内容を確認してください',html:`<pre>${productsText}</pre><br>合計: ${total.toLocaleString()}円`,showCancelButton:true,confirmButtonText:'送信',cancelButtonText:'キャンセル'}).then(async(result)=>{
+  // 送信確認
+  Swal.fire({
+    icon:'question',
+    title:'内容を確認してください',
+    html:`<pre>${productsText}</pre><br>合計: ${total.toLocaleString()}円`,
+    showCancelButton:true,
+    confirmButtonText:'送信',
+    cancelButtonText:'キャンセル'
+  }).then(async(result)=>{
     if(!result.isConfirmed) return;
-    const payload={name,phone,store,pickupDate:fixedPickupDate,pickupTime,products:productsText,total:String(total),memo:document.getElementById("memo").value||"",userId};
+
+    const payload={
+      name, phone, store,
+      pickupDate: fixedPickupDate,
+      pickupTime, products: productsText,
+      total: String(total),
+      memo: document.getElementById("memo").value||"",
+      userId
+    };
+
     try{
-      Swal.showLoading();
-      const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(payload)});
-      const resultJson=await res.json();
+      // 送信中モーダル
+      Swal.fire({title:'送信中...',allowOutsideClick:false,didOpen:()=>Swal.showLoading()});
+
+      const res = await fetch(GAS_URL,{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body: new URLSearchParams(payload)
+      });
+      const resultJson = await res.json();
       Swal.close();
-      if(resultJson.result==='success'){ Swal.fire({icon:'success',title:'予約を受け付けました'}); cart=[]; renderCart(); document.getElementById("reservationForm").reset();}
-      else{ Swal.fire({icon:'error',title:'送信エラー',text:resultJson.message||'サーバーエラー'}); }
-    }catch(err){ Swal.close(); Swal.fire({icon:'error',title:'通信エラー',text:err.message||String(err)}); }
+
+      if(resultJson.result==='success'){
+        Swal.fire({
+          icon:'success',
+          title:'予約を受け付けました',
+          html: resultJson.lineResult ? "LINE通知も送信済みです" : "LINE通知は送信できませんでした"
+        });
+        cart=[]; renderCart(); document.getElementById("reservationForm").reset();
+      } else {
+        Swal.fire({icon:'error',title:'送信エラー',text:resultJson.message||'サーバーエラー'});
+      }
+
+    }catch(err){
+      Swal.close();
+      Swal.fire({icon:'error',title:'通信エラー',text:err.message||String(err)});
+    }
   });
 });
 </script>
+
 </body>
 </html>
