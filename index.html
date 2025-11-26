@@ -288,16 +288,16 @@ document.getElementById("reservationForm").onsubmit = async function(e){
   if(!confirmResult.isConfirmed) return;
 
   // URLSearchParamsに変更
-  const formData = new URLSearchParams();
-  formData.append("name", name);
-  formData.append("phone", phone);
-  formData.append("store", store);
-  formData.append("pickupDate", fixedPickupDate);
-  formData.append("pickupTime", pickupTime);
-  formData.append("products", productsText);
-  formData.append("total", total);
-  formData.append("memo", memo);
-  formData.append("userId", userId);
+const formData = new URLSearchParams();
+formData.append("name", name);
+formData.append("phone", phone);
+formData.append("store", store);
+formData.append("pickupDate", fixedPickupDate);
+formData.append("pickupTime", pickupTime);
+formData.append("products", productsText);
+formData.append("total", total);
+formData.append("memo", memo);
+formData.append("userId", userId);
 
   try{
     Swal.fire({title:"送信中...", allowOutsideClick:false, didOpen:()=>Swal.showLoading()});
