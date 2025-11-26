@@ -58,13 +58,13 @@
     </div>
   </header>
 
-  <form id="reservationForm" class="card" autocomplete="off">
+  <form id="reservationForm" class="card" autocomplete="off" method="POST" action="https://script.google.com/macros/s/AKfycbwvcHKWuXTZXDssjwskN43tsGivXt3TR8miGH1BID5hOg2MxHZwv8tYT0--QWVNpib8MQ/exec">
     <div style="display:flex; gap:8px; margin-bottom:10px">
-      <input type="text" id="name" placeholder="お名前（必須）" required>様
-      <input type="tel" id="phone" placeholder="電話番号（必須）" required>
+      <input type="text" id="name" placeholder="お名前" required>様
+      <input type="tel" id="phone" placeholder="電話番号" required>
     </div>
 
-    <label class="small">受取店舗</label>
+    <label class="small">受取店舗　※この店舗でお支払いとなります。</label>
     <select id="store" required>
       <option value="">選択してください</option>
       <option value="ポケット店">ポケット店</option>
@@ -72,11 +72,12 @@
       <option value="キララ店">キララ店</option>
     </select>
 
-    <label class="small">受取時間（10:00〜18:00）</label>
+    <label class="small">受取時間　※10:00〜18:00までの30分刻みです。</label>
     <select id="pickupTime" required></select>
+    <input type="hidden" name="pickupDate" value="2025-12-31">
 
     <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center">
-      <div style="font-weight:700">商品を選ぶ</div>
+      <div style="font-weight:700">商品を選んで下さい</div>
       <div id="discountInfo" style="font-size:13px;color:#0a7a3b"></div>
     </div>
     <div class="gallery" id="gallery"></div>
@@ -89,7 +90,11 @@
     </div>
 
     <label class="small" style="margin-top:12px">備考</label>
-    <textarea id="memo" rows="3"></textarea>
+    <textarea id="memo" placeholder="お伝えしたい事があれば記入して下さい" rows="3"></textarea>
+    <!-- 商品内容をhiddenで送る -->
+  <input type="hidden" name="products" id="products">
+  <input type="hidden" name="total" id="totalInput">
+  <input type="hidden" name="userId" id="userIdInput">
 
     <button type="submit" class="submit-btn">送信する</button>
   </form>
@@ -106,8 +111,8 @@ const LIFF_ID = "2008417031-yLP1bOMR";
 const fixedPickupDate = "2025-12-31";
 
 // テスト用
-const USE_TEST_ID = false;
-const TEST_USER_ID = "Uxxxxxxxxxxxxxxxxxx";
+const USE_TEST_ID = true; //テストをする　true、しない false
+const TEST_USER_ID = "Ub7e1c8c7d3fb5cefef716f957b477172";
 let userId = ""; // ※宣言はここ1回のみ
 
 //====================
@@ -250,38 +255,26 @@ function updateTotal(){
 //====================
 // 送信処理
 //====================
+document.getElementById("reservationForm").onsubmit = async function(e) {
+  e.preventDefault(); // 送信停止
 
-document.getElementById("reservationForm").onsubmit=async(e)=>{
-  e.preventDefault();
-
-  if(cart.length===0){
+  if(cart.length === 0){
     return Swal.fire({icon:"warning", title:"商品を1つ以上追加してください"});
   }
 
-  const name=document.getElementById("name").value.trim();
-  const phone=document.getElementById("phone").value.trim();
-  const store=document.getElementById("store").value;
-  const pickupTime=document.getElementById("pickupTime").value;
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const store = document.getElementById("store").value;
+  const pickupTime = document.getElementById("pickupTime").value;
 
-  if(!name||!phone||!store||!pickupTime){
+  if(!name || !phone || !store || !pickupTime){
     return Swal.fire({icon:"warning", title:"必須項目を入力してください"});
   }
 
-  const productsText = cart.map(c=>`${c.name} ×${c.qty}（単価 ${c.price.toLocaleString()}円）`).join("\n");
+  const productsText = cart.map(c => `${c.name} ×${c.qty}（単価 ${c.price.toLocaleString()}円）`).join("\n");
   const total = cart.reduce((s,c)=>s+c.price*c.qty,0);
 
-  const confirm = await Swal.fire({
-    icon:"question",
-    title:"確認",
-    html:`<pre>${productsText}</pre><br>合計: ${total.toLocaleString()}円`,
-    showCancelButton:true,
-    confirmButtonText:"送信",
-    cancelButtonText:"キャンセル"
-  });
-  if(!confirm.isConfirmed) return;
-
-  // Payload
-  const payload={
+  const payload = {
     name, phone, store,
     pickupDate: fixedPickupDate,
     pickupTime,
@@ -291,29 +284,48 @@ document.getElementById("reservationForm").onsubmit=async(e)=>{
     userId
   };
 
+  const confirm = await Swal.fire({
+    icon:"question",
+    title:"確認",
+    html:`<pre>${productsText}</pre><br>合計: ${total.toLocaleString()}円`,
+    showCancelButton:true,
+    confirmButtonText:"送信",
+    cancelButtonText:"キャンセル"
+  });
+
+  if(!confirm.isConfirmed) return;
+
   try{
     Swal.fire({title:"送信中...", allowOutsideClick:false, didOpen:()=>Swal.showLoading()});
 
-     const res = await fetch(GAS_URL, {
-     method: 'POST',
-     headers: {'Content-Type':'application/json'},
-     body: JSON.stringify(payload)
-     });
+    const res = await fetch(GAS_URL, {
+      method:"POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
 
     const json = await res.json();
     Swal.close();
 
-    if(json.result==="success"){
-      Swal.fire({icon:"success",title:"予約を受け付けました",html: json.lineResult ? "LINE通知も送信しました" : "LINE通知は送信できませんでした"});
-      cart=[]; renderCart(); document.getElementById("reservationForm").reset();
-    }else{
-      Swal.fire({icon:"error",title:"エラー",text: json.message || "サーバーエラー"});
+    if(json.result === "success"){
+      Swal.fire({
+        icon:"success",
+        title:"予約を受け付けました",
+        html: json.lineResult ? "LINE通知も送信しました" : "LINE通知は送信できませんでした"
+      });
+      cart = [];
+      renderCart();
+      document.getElementById("reservationForm").reset();
+    } else {
+      Swal.fire({icon:"error", title:"エラー", text: json.message || "サーバーエラー"});
     }
-  }catch(err){
+
+  } catch(err) {
     Swal.close();
-    Swal.fire({icon:"error",title:"通信エラー",text: err.message});
+    Swal.fire({icon:"error", title:"通信エラー", text: err.message});
   }
 };
+
 
 // 初期描画
 renderPickupTimes();
