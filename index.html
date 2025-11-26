@@ -58,7 +58,7 @@
     </div>
   </header>
 
-  <form id="reservationForm" class="card" autocomplete="off" method="POST" >
+  <form id="reservationForm" class="card" autocomplete="off" >
     <div style="display:flex; gap:8px; margin-bottom:10px">
       <input type="text" id="name" placeholder="お名前" required>様
       <input type="tel" id="phone" placeholder="電話番号" required>
@@ -107,8 +107,8 @@ const LIFF_ID = "2008417031-yLP1bOMR";
 const fixedPickupDate = "2025-12-31";
 
 // テスト用
-const USE_TEST_ID = false; //テストをする　true、しない false
-const TEST_USER_ID = "U******************";
+const USE_TEST_ID = true; //テストをする　true、しない false
+const TEST_USER_ID = "Ub7e1c8c7d3fb5cefef716f957b477172";
 let userId = ""; // ※宣言はここ1回のみ
 
 //====================
@@ -251,6 +251,7 @@ function updateTotal(){
 //====================
 // 送信処理
 //====================
+
 document.getElementById("reservationForm").onsubmit = async function(e){
   e.preventDefault();
 
@@ -264,7 +265,7 @@ document.getElementById("reservationForm").onsubmit = async function(e){
   const pickupTime = document.getElementById("pickupTime").value;
   const memo = document.getElementById("memo").value || "";
 
-  if(!name||!phone||!store||!pickupTime){
+  if(!name || !phone || !store || !pickupTime){
     return Swal.fire({icon:"warning", title:"必須項目を入力してください"});
   }
 
@@ -286,13 +287,17 @@ document.getElementById("reservationForm").onsubmit = async function(e){
 
   try{
     Swal.fire({title:"送信中...", allowOutsideClick:false, didOpen:()=>Swal.showLoading()});
-    
+
     const res = await fetch(GAS_URL, {
-      method:"POST",
-      headers: { "Content-Type":"application/json" },
+      method: "POST",
+      mode: "cors",                     // ← ここ
+      headers: {
+        "Content-Type": "application/json" // ← ここ
+      },
       body: JSON.stringify(payload)
     });
 
+    // レスポンス受信
     const json = await res.json();
     Swal.close();
 
@@ -314,6 +319,7 @@ document.getElementById("reservationForm").onsubmit = async function(e){
     Swal.fire({icon:"error", title:"通信エラー", text: err.message});
   }
 };
+
 
 // 初期描画
 renderPickupTimes();
