@@ -108,15 +108,15 @@ const fixedPickupDate = "2025-12-31";
 
 // テスト用
 const USE_TEST_ID = false; //テストをする　true、しない false
-const TEST_USER_ID = "Ub7e1c8c7d3fb5cefef716f957b477172";
+const TEST_USER_ID = "U******************";
 let userId = ""; // ※宣言はここ1回のみ
 
 //====================
 // 商品データ
 //====================
 const PRODUCTS = [
-  { name: "ちとせ", price: 8800, img: "img/chitose.jpg", desc: "和・洋一段重：少人数でも楽しめる品数豊富な一品", earlyDiscount: 0.05, discountUntil: "2025-11-30" },
-  { name: "ひので", price: 15800, img: "img/hinode.jpg", desc: "和・洋二段重：家族みんなで大満足。定番と多彩な料理の二段重", earlyDiscount: 0.05, discountUntil: "2025-11-30" }
+  { name: "ちとせ", price: 8800, img: "img/chitose.jpg", desc: "和・洋一段重　少人数でも楽しめる品数豊富な一品", earlyDiscount: 0.05, discountUntil: "2025-11-30" },
+  { name: "ひので", price: 15800, img: "img/hinode.jpg", desc: "和・洋二段重　家族みんなで大満足。定番と多彩な料理の二段重", earlyDiscount: 0.05, discountUntil: "2025-11-30" }
 ];
 
 let cart = [];
@@ -139,18 +139,20 @@ function renderPickupTimes(){
 }
 
 //====================
-// 商品ギャラリー
+// 割引判定
 //====================
 function isEarlyActive(until){
   const today = new Date();
-  const d = new Date(until + "T00:00:00");
+  const d = new Date(until + "T23:59:59"); // ✅ 当日いっぱい有効
   return today <= d;
 }
 
+//====================
+// 商品ギャラリー
+//====================
 function renderGallery(){
   const g = document.getElementById("gallery");
   g.innerHTML="";
-
   PRODUCTS.forEach(p=>{
     const card=document.createElement("div"); card.className="product-card";
     const media=document.createElement("div"); media.className="product-media";
@@ -181,8 +183,9 @@ function renderGallery(){
     const addBtn=document.createElement("button"); addBtn.type="button"; addBtn.textContent="追加"; addBtn.className="qty-btn";
     addBtn.onclick=()=>{
       const isActive=isEarlyActive(p.discountUntil);
-      const price=isActive?Math.floor(p.price*(1-p.earlyDiscount)):p.price;
-      addToCart(p.name, qty.value, price);
+      const unitPrice=p.price; // ✅ 元価格保持
+      const appliedPrice=isActive?Math.floor(unitPrice*(1-p.earlyDiscount)):unitPrice;
+      addToCart(p.name, qty.value, appliedPrice);
       qty.value=1;
     };
 
@@ -233,7 +236,7 @@ function updateTotal(){
 }
 
 //====================
-// LIFF 初期化 or テストID
+// LIFF 初期化
 //====================
 (async()=>{
   if(USE_TEST_ID){
@@ -249,7 +252,7 @@ function updateTotal(){
 })();
 
 //====================
-// 送信処理（修正版）
+// 送信処理
 //====================
 const form = document.getElementById("reservationForm");
 
@@ -257,13 +260,8 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   if (!userId) {
-    return Swal.fire({
-      icon: "warning",
-      title: "LINEログイン情報が確認できません",
-      text: "LINEアプリから再度開いてください"
-    });
+    return Swal.fire({ icon: "warning", title: "LINEログイン情報が確認できません" });
   }
-
   if (cart.length === 0) {
     return Swal.fire({ icon: "warning", title: "商品を1つ以上追加してください" });
   }
@@ -276,6 +274,12 @@ form.addEventListener("submit", async (e) => {
 
   if (!name || !phone || !store || !pickupTime) {
     return Swal.fire({ icon: "warning", title: "必須項目を入力してください" });
+  }
+
+  // ✅ 電話番号形式チェック
+  const phonePattern = /^[0-9\-+]{10,15}$/;
+  if (!phonePattern.test(phone)) {
+    return Swal.fire({ icon: "warning", title: "電話番号の形式が正しくありません" });
   }
 
   const productsText = cart.map(c => `${c.name} ×${c.qty}（単価 ${c.price.toLocaleString()}円）`).join("\n");
@@ -310,7 +314,7 @@ form.addEventListener("submit", async (e) => {
       body: formData
     });
 
-    // JSONとして解析
+    if (!res.ok) throw new Error("サーバーエラー: " + res.status);
     const json = await res.json();
     Swal.close();
 
@@ -320,8 +324,6 @@ form.addEventListener("submit", async (e) => {
         title: "予約を受け付けました",
         html: json.lineResult ? "LINE通知も送信しました" : "LINE通知は送信できませんでした"
       });
-
-      // フォームとカートリセット
       cart = [];
       renderCart();
       form.reset();
@@ -334,7 +336,6 @@ form.addEventListener("submit", async (e) => {
     Swal.fire({ icon: "error", title: "通信エラー", text: err.message });
   }
 });
-
 
 // 初期描画
 renderPickupTimes();
