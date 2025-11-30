@@ -70,7 +70,9 @@ tr:hover { background: #fafafa; }
     <button class="filter-btn" data-store="キララ店">キララ店</button>
     <button id="reloadBtn">🔄 更新</button>
   </div>
-
+<div id="summary" style="margin:15px 0; font-weight:bold; font-size:1.1em; text-align:right;">
+  件数: 0件 ／ 合計金額: 0円
+</div>
   <table id="reservationTable">
     <thead>
       <tr>
@@ -78,9 +80,9 @@ tr:hover { background: #fafafa; }
         <th data-sort="登録日時">登録日時</th>
         <th data-sort="名前">名前</th>
         <th data-sort="受取店舗">店舗</th>
-        <th data-sort="受取日">受取日</th>
         <th data-sort="受取時間">受取時間</th>
         <th data-sort="注文内容">注文内容</th>
+        <th data-sort="合計金額">合計金額</th>
         <th data-sort="備考">備考</th>
       </tr>
     </thead>
@@ -92,7 +94,7 @@ tr:hover { background: #fafafa; }
 <div id="loadingModal">🔄 読み込み中…</div>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbzwrh9XpkMVl2osyxAjWq2ZNhlubQ2H8CDLhkgN7LfvYBfzhDOLwjnQtyuH7k_dWQSm9A/exec"; // GAS URL
+const API_URL = "https://script.google.com/macros/s/AKfycbzImMNAeMAXk0TYbsINGE3_cGiAxY6-OaHoRqHcjggAvOhMRZmjVFNXdVDWiZfq4VgDGw/exec?mode=json"; // GAS URL
 let reservationData = [];
 let currentStore = "全店";
 let currentSort = { key: "No", asc: true };
@@ -136,23 +138,24 @@ function renderTable() {
     return;
   }
 
-filtered.forEach(r => {
-  const tr = document.createElement("tr");
-  const dateStr = r["登録日時"] ? new Date(r["登録日時"]) : null;
-  tr.innerHTML = `
-    <td>${r["予約番号"] || ""}</td>
-    <td>${dateStr ? dateStr.toLocaleString() : ""}</td>
-    <td>${r["名前"] || ""}</td>
-    <td>${r["受取店舗"] || ""}</td>
-    <td>${r["受取日"] || ""}</td>
-    <td>${r["受取時間"] || ""}</td>
-    <td>${r["注文内容"]?.replace(/\n/g,"<br>") || ""}</td>
-    <td>${r["備考"] || ""}</td>
-  `;
-  tbody.appendChild(tr);
-});
+  filtered.forEach(r => {
+    const tr = document.createElement("tr");
+    const dateStr = r["登録日時"] ? new Date(r["登録日時"]) : null;
+    tr.innerHTML = `
+      <td>${r["予約番号"] || ""}</td>
+      <td>${dateStr ? dateStr.toLocaleString() : ""}</td>
+      <td>${r["名前"] || ""}</td>
+      <td>${r["受取店舗"] || ""}</td> 
+      <td>${r["受取時間"] || ""}</td>
+      <td>${r["注文内容"]?.replace(/\n/g,"<br>") || ""}</td>
+      <td>${r["合計金額"] || ""}</td>
+      <td>${r["備考"] || ""}</td>
+    `;
+    tbody.appendChild(tr);
+  });
 
 }
+
 
 
 
@@ -194,9 +197,51 @@ document.querySelectorAll("#reservationTable th").forEach(th => {
         : vb.toString().localeCompare(va.toString(), "ja");
     });
 
+    // ✅ ソート後に既存の renderTable を呼び出すだけ
     renderTable();
   });
 });
+
+function renderTable() {
+  let filtered = reservationData.slice();
+  if (currentStore !== "全店") {
+    filtered = filtered.filter(r => r["受取店舗"] === currentStore);
+  }
+
+  const tbody = document.querySelector("#reservationTable tbody");
+  tbody.innerHTML = "";
+
+  if (filtered.length === 0) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="8" style="text-align:center;color:#888;">データがありません</td>`;
+    tbody.appendChild(tr);
+    document.getElementById("summary").textContent = "件数: 0件 ／ 合計金額: 0円";
+    return;
+  }
+
+  filtered.forEach(r => {
+    const tr = document.createElement("tr");
+    const dateStr = r["登録日時"] ? new Date(r["登録日時"]) : null;
+    tr.innerHTML = `
+      <td>${r["予約番号"] || ""}</td>
+      <td>${dateStr ? dateStr.toLocaleString() : ""}</td>
+      <td>${r["名前"] || ""}</td>
+      <td>${r["受取店舗"] || ""}</td> 
+      <td>${r["受取時間"] || ""}</td>
+      <td>${r["注文内容"]?.replace(/\n/g,"<br>") || ""}</td>
+      <td>${r["合計金額"] || ""}</td>
+      <td>${r["備考"] || ""}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // ✅ 件数と合計金額を計算
+  const count = filtered.length;
+  const total = filtered.reduce((sum, r) => sum + Number(r["合計金額"] || 0), 0);
+
+  document.getElementById("summary").textContent =
+    `件数: ${count}件 ／ 合計金額: ${total.toLocaleString()}円`;
+}
 
 // 更新ボタン
 document.getElementById("reloadBtn").addEventListener("click", fetchData);

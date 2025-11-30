@@ -102,7 +102,7 @@
 //====================
 // 設定
 //====================
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyPr7te7T3mFhc6OBYasBNPitH-jqvuxqKcDNlUuvcFL9C4aNnnGJDADvkNrbhno8P30A/exec";
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzImMNAeMAXk0TYbsINGE3_cGiAxY6-OaHoRqHcjggAvOhMRZmjVFNXdVDWiZfq4VgDGw/exec";
 const LIFF_ID = "2008417031-yLP1bOMR";
 const fixedPickupDate = "2025-12-31";
 
@@ -318,18 +318,33 @@ const res = await fetch(GAS_URL, {
     const json = await res.json();
     Swal.close();
 
-    if (json.result === "success") {
-      Swal.fire({
-        icon: "success",
-        title: "予約を受け付けました",
-        html: json.lineResult ? "LINE通知も送信しました" : "LINE通知は送信できませんでした"
-      });
-      cart = [];
-      renderCart();
-      form.reset();
-    } else {
-      Swal.fire({ icon: "error", title: "エラー", text: json.message || "サーバーエラー" });
-    }
+if (json.result === "success") {
+  // カート内容を文字列化
+  const productsText = cart.map(c => `${c.name} ×${c.qty}（単価 ${c.price.toLocaleString()}円）`).join(",");
+  const total = cart.reduce((sum, c) => sum + c.price * c.qty, 0);
+
+  // URLパラメータに予約情報を付与
+  const query = new URLSearchParams({
+    reservationId: json.reservationId,
+    name,
+    store,
+    pickupDate: fixedPickupDate,
+    pickupTime,
+    products: productsText,
+    total
+  });
+
+  // ✅ 完了ページへ遷移
+  window.location.href = "complete.html?" + query.toString();
+
+  // カートとフォームはリセット
+  cart = [];
+  renderCart();
+  form.reset();
+
+} else {
+  Swal.fire({ icon: "error", title: "エラー", text: json.message || "サーバーエラー" });
+}
 
   } catch (err) {
     Swal.close();
