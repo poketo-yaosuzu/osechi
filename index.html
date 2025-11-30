@@ -319,25 +319,25 @@ const res = await fetch(GAS_URL, {
     Swal.close();
 
 if (json.result === "success") {
-  // カート内容を文字列化
   const productsText = cart.map(c => `${c.name} ×${c.qty}（単価 ${c.price.toLocaleString()}円）`).join(",");
   const total = cart.reduce((sum, c) => sum + c.price * c.qty, 0);
 
   // URLパラメータに予約情報を付与
   const query = new URLSearchParams({
-    reservationId: json.reservationId,
+    reservationId: json.reservationId, // GAS側で生成した予約番号
     name,
+    phone, // ←修正
     store,
     pickupDate: fixedPickupDate,
     pickupTime,
     products: productsText,
-    total
+    total,
+    memo
   });
 
-  // ✅ 完了ページへ遷移
+  // 完了画面へ遷移
   window.location.href = "complete.html?" + query.toString();
 
-  // カートとフォームはリセット
   cart = [];
   renderCart();
   form.reset();
