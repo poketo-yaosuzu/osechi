@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>ヤオスズおせちご予約フォーム</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    :root{
+      --line-green:#06c755;
+      --bg:#f1f3f4;
+      --card:#ffffff;
+      --muted:#8a8f93;
+      --accent:#e9f7ee;
+      --danger:#ff6b6b;
+    }
+    *{box-sizing:border-box}
+    body{font-family:"Helvetica","Noto Sans JP",sans-serif;background:var(--bg);margin:0;padding:16px;}
+    .wrap{max-width:540px;margin:0 auto;}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+    .logo{width:90px;height:44px;border-radius:10px;background:var(--line-green);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;}
+    h1{font-size:18px;margin:0}
+    .card{background:var(--card);border-radius:12px;padding:14px;box-shadow:0 6px 18px rgba(0,0,0,0.06);margin-bottom:14px;}
+    label.small{display:block;color:var(--muted);font-size:13px;margin-bottom:8px}
+    input, textarea, select{width:100%;padding:10px;border-radius:10px;border:1px solid #e3e6e8;font-size:15px;background:#fff;}
+    .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:8px}
+    .product-card{border-radius:12px;background:#fff;border:1px solid #eef2f1;overflow:hidden;cursor:pointer;transition:0.12s}
+    .product-card:hover{transform:translateY(-4px); box-shadow:0 10px 22px rgba(0,0,0,0.06)}
+    .product-media{height:140px;overflow:hidden}
+    .product-media img{width:100%;height:100%;object-fit:cover}
+    .product-body{padding:10px;display:flex;gap:10px;}
+    .product-info{flex:1}
+    .product-title{font-weight:700;margin:0 0 6px;}
+    .product-desc{margin:0;color:var(--muted);font-size:13px;}
+    .badge{background:var(--accent);color:#0c6b32;font-weight:700;font-size:12px;padding:4px 6px;border-radius:999px;display:inline-block;margin-top:6px}
+    .qty-wrap{display:flex;align-items:center;gap:6px;margin-top:6px}
+    .qty-input{width:56px;text-align:center;border-radius:8px;border:1px solid #e0e0e0}
+    .qty-btn{padding:8px 14px;border-radius:8px;border:1px solid #ccc;background:#fff;cursor:pointer}
+    .cart{margin-top:12px;background:#fff;border-radius:12px;padding:10px;box-shadow:0 4px 12px rgba(0,0,0,0.05)}
+    .cart-item{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #eee}
+    .cart-item:last-child{border-bottom:none}
+    .cart-remove{color:var(--danger);cursor:pointer;font-size:14px}
+    .summary{margin-top:8px}
+    .summary-row{display:flex;justify-content:space-between;align-items:center}
+    .total{font-size:20px;font-weight:800}
+    .submit-btn{background:var(--line-green);color:#fff;padding:12px;border-radius:10px;border:none;width:100%;font-size:16px;cursor:pointer;margin-top:10px}
+    footer{text-align:center;color:var(--muted);font-size:13px;margin-top:12px;}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">YAOSUZU</div>
+    <div>
+      <h1>おせちご予約フォーム</h1>
+      <div style="font-size:13px;color:#666">受取日は<strong>12月31日限定</strong>です</div>
+    </div>
+  </header>
+
+  <form id="reservationForm" class="card" autocomplete="off" >
+    <div style="display:flex; gap:8px; margin-bottom:10px">
+      <input type="text" id="name" placeholder="お名前" required>様
+      <input type="tel" id="phone" placeholder="電話番号" required>
+    </div>
+
+    <label class="small">受取店舗　※この店舗でお支払いとなります。</label>
+    <select id="store" required>
+      <option value="">選択してください</option>
+      <option value="ポケット店">ポケット店</option>
+      <option value="アップティ店">アップティ店</option>
+      <option value="キララ店">キララ店</option>
+    </select>
+
+    <label class="small">受取時間　※10:00〜18:00までの30分刻みです。</label>
+    <select id="pickupTime" required></select>
+  
+
+    <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center">
+      <div style="font-weight:700">商品を選んで下さい</div>
+      <div id="discountInfo" style="font-size:13px;color:#0a7a3b"></div>
+    </div>
+    <div class="gallery" id="gallery"></div>
+
+    <div class="cart" id="cart"></div>
+
+    <div class="summary">
+      <div class="summary-row"><div>合計金額：</div><div class="total"><span id="total">0</span>円</div></div>
+      <div style="font-size:13px;color:#888">※価格は早割り適用後、税別金額です</div>
+    </div>
+
+    <label class="small" style="margin-top:12px">備考</label>
+    <textarea id="memo" placeholder="お伝えしたい事があれば記入して下さい" rows="3"></textarea>
+
+    <button type="submit" class="submit-btn">送信する</button>
+  </form>
+
+  <footer>©️ スーパーヤオスズ</footer>
+</div>
+
+<script>
+//====================
+// 設定
+//====================
+const GAS_URL = "https://script.google.com/macros/s/AKfycbyPr7te7T3mFhc6OBYasBNPitH-jqvuxqKcDNlUuvcFL9C4aNnnGJDADvkNrbhno8P30A/exec";
+const LIFF_ID = "2008417031-yLP1bOMR";
+const fixedPickupDate = "2025-12-31";
+
+// テスト用
+const USE_TEST_ID = false; //テストをする　true、しない false
+const TEST_USER_ID = "U******************";
+let userId = ""; // ※宣言はここ1回のみ
+
+//====================
+// 商品データ
+//====================
+const PRODUCTS = [
+  { name: "ちとせ", price: 8800, img: "img/chitose.jpg", desc: "和・洋一段重　少人数でも楽しめる品数豊富な一品", earlyDiscount: 0.05, discountUntil: "2025-11-30" },
+  { name: "ひので", price: 15800, img: "img/hinode.jpg", desc: "和・洋二段重　家族みんなで大満足。定番と多彩な料理の二段重", earlyDiscount: 0.05, discountUntil: "2025-11-30" }
+];
+
+let cart = [];
+
+//====================
+// 受取時間生成
+//====================
+function renderPickupTimes(){
+  const el = document.getElementById("pickupTime");
+  for(let h=10; h<=18; h++){
+    for(const m of ["00","30"]){
+      if(h===18 && m==="30") continue;
+      const val = `${String(h).padStart(2,"0")}:${m}`;
+      const opt = document.createElement("option");
+      opt.value = val;
+      opt.textContent = val;
+      el.appendChild(opt);
+    }
+  }
+}
+
+//====================
+// 割引判定
+//====================
+function isEarlyActive(until){
+  const today = new Date();
+  const d = new Date(until + "T23:59:59"); // ✅ 当日いっぱい有効
+  return today <= d;
+}
+
+//====================
+// 商品ギャラリー
+//====================
+function renderGallery(){
+  const g = document.getElementById("gallery");
+  g.innerHTML="";
+  PRODUCTS.forEach(p=>{
+    const card=document.createElement("div"); card.className="product-card";
+    const media=document.createElement("div"); media.className="product-media";
+    const img=document.createElement("img"); img.src=p.img; img.alt=p.name;
+    img.onclick=()=>Swal.fire({imageUrl:p.img,showConfirmButton:false});
+    media.appendChild(img);
+
+    const body=document.createElement("div"); body.className="product-body";
+    const info=document.createElement("div"); info.className="product-info";
+
+    const title=document.createElement("div"); title.className="product-title";
+    title.textContent=`${p.name} ${p.price.toLocaleString()}円`;
+
+    const desc=document.createElement("p"); desc.className="product-desc";
+    desc.textContent=p.desc;
+
+    info.appendChild(title);
+    info.appendChild(desc);
+
+    if(isEarlyActive(p.discountUntil)){
+      const badge=document.createElement("div"); badge.className="badge";
+      badge.textContent=`${p.discountUntil} まで ${Math.round(p.earlyDiscount*100)}%OFF`;
+      info.appendChild(badge);
+    }
+
+    const qtyWrap=document.createElement("div"); qtyWrap.className="qty-wrap";
+    const qty=document.createElement("input"); qty.type="number"; qty.value=1; qty.min=1; qty.className="qty-input";
+    const addBtn=document.createElement("button"); addBtn.type="button"; addBtn.textContent="追加"; addBtn.className="qty-btn";
+    addBtn.onclick=()=>{
+      const isActive=isEarlyActive(p.discountUntil);
+      const unitPrice=p.price; // ✅ 元価格保持
+      const appliedPrice=isActive?Math.floor(unitPrice*(1-p.earlyDiscount)):unitPrice;
+      addToCart(p.name, qty.value, appliedPrice);
+      qty.value=1;
+    };
+
+    qtyWrap.appendChild(qty);
+    qtyWrap.appendChild(addBtn);
+
+    body.appendChild(info);
+    body.appendChild(qtyWrap);
+
+    card.appendChild(media);
+    card.appendChild(body);
+
+    g.appendChild(card);
+  });
+}
+
+//====================
+// カート処理
+//====================
+function addToCart(name, qty, price){
+  qty = Number(qty);
+  const i = cart.findIndex(c=>c.name===name);
+  if(i>=0) cart[i].qty += qty;
+  else cart.push({name, qty, price});
+  renderCart();
+}
+
+function renderCart(){
+  const el=document.getElementById("cart");
+  el.innerHTML="";
+  cart.forEach(c=>{
+    const item=document.createElement("div"); item.className="cart-item";
+    item.innerHTML=`${c.name} ×${c.qty} <span class='cart-remove' data-name='${c.name}'>削除</span> <span>${c.price.toLocaleString()}円</span>`;
+    el.appendChild(item);
+  });
+  document.querySelectorAll(".cart-remove").forEach(b=>b.onclick=()=>removeFromCart(b.dataset.name));
+  updateTotal();
+}
+
+function removeFromCart(name){
+  cart = cart.filter(c=>c.name!==name);
+  renderCart();
+}
+
+function updateTotal(){
+  const sum = cart.reduce((s,c)=>s+c.price*c.qty,0);
+  document.getElementById("total").textContent=sum.toLocaleString();
+}
+
+//====================
+// LIFF 初期化
+//====================
+(async()=>{
+  if(USE_TEST_ID){
+    userId = TEST_USER_ID;
+    return;
+  }
+  try{
+    await liff.init({ liffId: LIFF_ID });
+    if(!liff.isLoggedIn()) return liff.login();
+    const profile = await liff.getProfile();
+    userId = profile.userId;
+  }catch(e){ console.warn("LIFF ERROR", e); }
+})();
+
+//====================
+// 送信処理
+//====================
+const form = document.getElementById("reservationForm");
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  if (!userId) {
+    return Swal.fire({ icon: "warning", title: "LINEログイン情報が確認できません" });
+  }
+  if (cart.length === 0) {
+    return Swal.fire({ icon: "warning", title: "商品を1つ以上追加してください" });
+  }
+
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const store = document.getElementById("store").value;
+  const pickupTime = document.getElementById("pickupTime").value;
+  const memo = document.getElementById("memo").value || "";
+
+  if (!name || !phone || !store || !pickupTime) {
+    return Swal.fire({ icon: "warning", title: "必須項目を入力してください" });
+  }
+
+  // ✅ 電話番号形式チェック
+  const phonePattern = /^[0-9\-+]{10,15}$/;
+  if (!phonePattern.test(phone)) {
+    return Swal.fire({ icon: "warning", title: "電話番号の形式が正しくありません" });
+  }
+
+  const productsText = cart.map(c => `${c.name} ×${c.qty}（単価 ${c.price.toLocaleString()}円）`).join("\n");
+  const total = cart.reduce((sum, c) => sum + c.price * c.qty, 0);
+
+  const confirmResult = await Swal.fire({
+    icon: "question",
+    title: "確認",
+    html: `<pre>${productsText}</pre><br>合計: ${total.toLocaleString()}円`,
+    showCancelButton: true,
+    confirmButtonText: "送信",
+    cancelButtonText: "キャンセル"
+  });
+  if (!confirmResult.isConfirmed) return;
+
+  const formData = new URLSearchParams({
+    name, phone, store,
+    pickupDate: fixedPickupDate,
+    pickupTime,
+    products: productsText,
+    total,
+    memo,
+    userId
+  });
+
+  try {
+    Swal.fire({ title: "送信中...", allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+const res = await fetch(GAS_URL, {
+  method: "POST",
+  headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  body: formData
+});
+
+    if (!res.ok) throw new Error("サーバーエラー: " + res.status);
+    const json = await res.json();
+    Swal.close();
+
+    if (json.result === "success") {
+      Swal.fire({
+        icon: "success",
+        title: "予約を受け付けました",
+        html: json.lineResult ? "LINE通知も送信しました" : "LINE通知は送信できませんでした"
+      });
+      cart = [];
+      renderCart();
+      form.reset();
+    } else {
+      Swal.fire({ icon: "error", title: "エラー", text: json.message || "サーバーエラー" });
+    }
+
+  } catch (err) {
+    Swal.close();
+    Swal.fire({ icon: "error", title: "通信エラー", text: err.message });
+  }
+});
+
+// 初期描画
+renderPickupTimes();
+renderGallery();
+updateTotal();
+
+</script>
+</body>
+</html>
